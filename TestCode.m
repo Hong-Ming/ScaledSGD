@@ -23,10 +23,10 @@ Illini_Blue    = '#13294B';
 epochs = 100; 
 momentum = 0;
 minibatch = 1;
-lossfun = 'square';
+% lossfun = 'square';
 % lossfun = '1bit';
 % lossfun = 'pair';
-% lossfun = 'ranklog';
+lossfun = 'ranklog';
 % lossfun = 'rank';
 % lossfun = 'dist';
 
@@ -61,16 +61,16 @@ fgd = nan; fsgd = nan; fscgd = nan; fscsgd = nan;
 ggd = nan; gsgd = nan; gscgd = nan; gscsgd = nan;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% GD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[~, fgd, ggd] = psd_gd(spmat, r, epochs, alpha_gd, momentum, X0, lossfun);fprintf('\n')
+% [~, fgd, ggd] = psd_gd(spmat, r, epochs, alpha_gd, momentum, X0, lossfun);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[~, fsgd, gsgd] = psd_sgd(spmat, r, epochs, alpha_sgd, momentum, minibatch, X0, lossfun);fprintf('\n')
+% [~, fsgd, gsgd] = psd_sgd(spmat, r, epochs, alpha_sgd, lossfun, momentum, minibatch, [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% ScaleGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[~, fscgd, gscgd] = psd_scalegd(spmat, r, epochs, alpha_pgd, momentum, X0, lossfun);fprintf('\n')
+% [~, fscgd, gscgd] = psd_scalegd(spmat, r, epochs, alpha_pgd, momentum, X0, lossfun);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%
-[~, fscsgd, gscsgd] = psd_scalesgd(spmat, r, epochs, alpha_psgd, momentum, minibatch, X0, lossfun);
+[~, fscsgd, gscsgd] = psd_scalesgd(spmat, r, epochs, alpha_psgd, lossfun, momentum, minibatch, [], X0);fprintf('\n')
 
 %% Plot Figure
 xlimit = inf;
@@ -138,10 +138,10 @@ M = [1 0 2 0 4;
      0 2 0 2 0;
      4 4 2 0 1];
 r = 3;
-epochs = 10000;
-alpha =1;
+epochs = 1000;
+alpha =0.1;
 momentum = 0;
 
 % [U, fpsgd, gpsgd] = psd_sgd(M, r, epochs, alpha, 0, 1, [], 'ranklog');
-[U, fpsgd, gpsgd] = psd_precsgd(M, r, epochs, alpha, 0, [], [], 'ranklog');
+[U, fpsgd, gpsgd] = psd_scalesgd(M, r, epochs, alpha, 'ranklog');
 disp([M,U*U']);

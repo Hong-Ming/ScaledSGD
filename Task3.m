@@ -15,30 +15,30 @@ r = 3;
 %% Show SGD works well for well conditon, ScaleSGD workds well for both well and ill condition (n^2 samples)
 
 % Sample Ground Truth
-m = n^2;
-spmat_SynWell30 = sampling(M_SynWell30,m);
-spmat_SynIll30 = sampling(M_SynIll30,m);
+percent = 100;
+spmat_SynWell30 = sampling(M_SynWell30,percent);
+spmat_SynIll30 = sampling(M_SynIll30,percent);
 
 rng(10)
 epochs = 50;
-learning_rate = 0.05;  
+lr = 0.05;  
 lossfun = 'pair';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Well SDG %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(10); X0 = randn(n,r);  
-[~, fsgdwell, ~] = psd_sgd(spmat_SynWell30, r, epochs, learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fsgdwell, ~] = psd_sgd(spmat_SynWell30, r, epochs, lr, lossfun, [], [], [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Ill SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(10); X0 = randn(n,r);  
-[~, fsgdill, ~] = psd_sgd(spmat_SynIll30, r, epochs, learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fsgdill, ~] = psd_sgd(spmat_SynIll30, r, epochs, lr, lossfun, [], [], [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Well ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(10); X0 = randn(n,r);  
-[~, fscsgdwell, ~] = psd_scalesgd(spmat_SynWell30, r, epochs, 1*learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fscsgdwell, ~] = psd_scalesgd(spmat_SynWell30, r, epochs, 1*lr, lossfun, [], [], [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Ill ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(10); X0 = randn(n,r);  
-[~, fscsgdill, ~] = psd_scalesgd(spmat_SynIll30, r, epochs, 1*learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fscsgdill, ~] = psd_scalesgd(spmat_SynIll30, r, epochs, 1*lr, lossfun, [], [], [], X0);fprintf('\n')
 
 % Plot PrecSGD vs SGD (Well condition and Ill condition)
 xlimit = 20;

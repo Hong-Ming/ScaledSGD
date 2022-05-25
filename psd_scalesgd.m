@@ -1,63 +1,84 @@
-function [X,fhist,ghist] = psd_scalesgd(spmat, r, epochs, learning_rate, momentum, minibatch, X0, lossfun)
+function [X,fhist,ghist,ehist] = psd_scalesgd(M, r, epochs, learning_rate, lossfun, momentum, minibatch, reg, X0, M_true, metric)
 % PSD_SCALESGD   Learn low-rank posdef matrix from samples of matrix elements
-% X = PSD_SCALESGD(SPMAT, R, K) performs K epochs of preconditioned 
+% X = PSD_SCALESGD(M, R, K) performs K epochs of preconditioned 
 % stochastic gradient descent to compute an N x R factor X so that 
-% MAT = X*X' approximately satisfies MAT(i,j) = SPMAT(i,j) for all 
-% nonzero elements i,j in SPMAT. 
-% SPMAT must be square and should be large, sparse, and symmetric.
+% MAT = X*X' approximately satisfies MAT(i,j) = M(i,j) for all 
+% nonzero elements i,j in M. 
+% M must be square and should be large, sparse, and symmetric.
 % 
-% X = PSD_SCALESGD(SPMAT, R, K, LR) performs the above using learning rate LR.
+% X = PSD_SCALESGD(M, R, K, LR) performs the above using learning rate LR.
 % 
-% X = PSD_SCALESGD(SPMAT, R, K, LR, MO) performs the above using learning 
-% rate LR and momentum MO.
-% 
-% X = PSD_SCALESGD(SPMAT, R, K, LR, MO, MI) performs the above using learning 
-% rate LR, momentum MO and minibatch size MI.
-% 
-% X = PSD_SCALESGD(SPMAT, R, K, LR, MO, MI, X0) additionally uses X0 as the initial
-% point, instead of the default random point.
-% 
-% X = PSD_SCALESGD(SPMAT, R, K, LR, MO, MI, X0, lossfun) specify the loss function.
+% X = PSD_SCALESGD(M, R, K, LR, lossfun) specify the loss function.
 %   Available loss function:
-%       'square'  - (default) square loss: sum_{i,j} |MAT(i,j) - SPMAT(i,j)|^2
+%       'square'  - pointwise square loss (default): sum_{i,j} |MAT(i,j) - M(i,j)|^2
+%       '1bit'    - pointwise 1 bit matrix completion loss
+%       'dist'    - pointwise square loss for Euclidean distance matrix
 %       'pair'    - pairwise square loss: sum_{i,j,k} |MAT(i,j)-MAT(i,k) - Y(i,j,k)|^2
 %       'rank'    - pariwise hinge ranking loss
 %       'ranklog' - pariwise corss entropy ranking loss
-%       '1bit'    - pointwise 1 bit matrix completion loss
-%       'dist'    - pairwise square loss for Euclidean distance matrix
+% 
+% X = PSD_SCALESGD(M, R, K, LR, lossfun, MO, MI, REG) performs the above 
+% momentum MO (default M0=0), minibatch size MI (default MI=1) and regularization 
+% parameter REG (default REG=0).
+% 
+% X = PSD_SCALESGD(M, R, K, LR, lossfun, MO, MI, REG, X0) additionally uses
+% X0 as the initial point, instead of the default random point.
+% 
+% X = PSD_SCALESGD(M, R, K, LR, lossfun, MO, MI, REG, X0, M_true) additionally 
+% uses M_true to evaluate generalization error. If M_true is not specify, 
+% M will be used instead.
+% 
+% X = PSD_SCALESGD(M, R, K, LR, lossfun, MO, MI, REG, X0, M_true, metric)
+% specify the evaluation metric
+%   Available evaluation metric:
+%       'none'    - no evaluation will be perform (default)
+%       'RMSE'    - root mean squre error
+%       'AUC'     - area under the ROC curve
 % 
 % [X, FHIST] = PSD_SCALESGD(...) also returns the history of residuals
 % 
 % [X, FHIST, GHIST] = PSD_SCALESGD(...) also returns the history of gradient
 % norms 
+% [X, FHIST, GHIST, EHIST] = PSD_SCALESGD(...) also returns the history of
+% evaluation score
 
 % Parameter
 Threshold = 1e-16;
 PrintFreq = 200;
 
 % Robustness
-[n,nchk] = size(spmat);
+[n,nchk] = size(M);
 if nchk ~= n, error('SPMAT must be squrae'); end
 if nargin < 4 || isempty(learning_rate)
     learning_rate = 1e-2;
 end
-if nargin < 5 || isempty(momentum)
+if nargin < 5 || isempty(lossfun)
+    lossfun = 'square';
+end
+if nargin < 6 || isempty(momentum)
     momentum = 0;
 end
-if nargin < 6 || isempty(minibatch)
+if nargin < 7 || isempty(minibatch)
     minibatch = 1;
 end
-if nargin < 7 || isempty(X0)
+if nargin < 8 || isempty(reg)
+    reg = 0;
+end
+if nargin < 9 || isempty(X0)
     X = randn(n,r);
 else
     X = reshape(X0(1:n*r),n,r); 
 end
-if nargin < 8 || isempty(lossfun)
-    lossfun = 'square';
+if nargin < 10 || isempty(M_true)
+    M_true = M;
+end
+if nargin < 11 || isempty(metric)
+    metric = 'none';
 end
 
 % Retrieve data
-[i,j,k,Y,m] = RetriveData;
+[i,j,k,Y,m] = RetriveData();
+[it,jt,kt,Yt,mt] = RetriveDataEVAL();
 
 % Check valid minibatch size
 minibatch = floor(minibatch);
@@ -71,6 +92,7 @@ end
 
 fhist = inf(1,epochs); % history of residuals
 ghist = inf(1,epochs); % history of gradient norm
+ehist = inf(1,epochs); % history of auc score
 Z = zeros(n,r);        % momentum storage
 WordCount = 0;         % word counter
 P  = inv(X'*X);        % initail preconditioner
@@ -78,29 +100,37 @@ B1 = [-1 1;1 0];       % matrix for SMW
 B2 = blkdiag(B1,B1);   % matrix for SMW
 B3 = blkdiag(B1,B2);   % matrix for SMW
 
-% print info
+% Print info
 w1 = fprintf(repmat('*',1,65));fprintf('*\n');
 w2 = fprintf('* Solver: ScaleSGD,  Loss Function: %s loss',lossfun);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
-w2 = fprintf('* search rank: %d, epochs: %d',r,epochs);
+w2 = fprintf('* search rank: %d, epochs: %d, learning rate: %3.1e',r,epochs,learning_rate);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
-w2 = fprintf('* learning_rate %3.1e, momentum: %3.1e, minibatch: %d',learning_rate,momentum,minibatch);
+w2 = fprintf('* momentum: %3.1e, minibatch: %d, regularization: %3.1e',momentum,minibatch,reg);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
-w2 = fprintf('* numel(M): %d, nnz(M): %d, #sample: %d',numel(spmat),nnz(spmat),m);
+w2 = fprintf('* numel(M): %d, nnz(M): %d, #sample: %d',numel(M),nnz(M),m);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 fprintf(repmat('*',1,65));fprintf('*\n');
 [obj, grad] = ComputeObjGrad(i,j,k,Y,m);
 ini_fhist = obj;
 ini_ghist = norm(grad,'fro');
-fprintf(repmat('\b',1,WordCount));
-WordCount = fprintf('Epoch: %4d, Loss: %8.4e, Grad: %8.4e',0, ini_fhist, ini_ghist);
+if strcmp(metric,'none')
+    ini_ehist = inf;
+    fprintf(repmat('\b',1,WordCount));
+    WordCount = fprintf('Epoch: %4d, Loss: %8.4e, Grad: %8.4e',0, ini_fhist, ini_ghist);
+else
+    ini_ehist = Evaluation(it,jt,kt,Yt,mt);
+    fprintf(repmat('\b',1,WordCount));
+    WordCount = fprintf('Epoch: %4d, Loss: %8.4e, %s: %6.4f, Grad: %8.4e',0, ini_fhist, ini_ehist, metric, ini_ghist);
+end
 
+% Start ScaleSGD
 for epoch = 1:epochs
     % Shuffle data
     perm = randperm(m);
     i = i(perm); j = j(perm); k = k(perm); Y = Y(perm);
 
-    if minibatch > 1  % with minibatch
+    if minibatch > 1 || reg ~= 0  % with minibatch or regularization
         for batch = 1:ceil(m/minibatch)  % loop over each batch
             batch_start = minibatch*(batch-1)+1;
             batch_end = minibatch*(batch);
@@ -154,8 +184,6 @@ for epoch = 1:epochs
                     gradi = grad*X(bj,:)*P;
                     gradj = grad*X(bi,:)*P;
                 end
-                dui = - learning_rate*gradi';
-                duj = - learning_rate*gradj';
                 if momentum == 0
                     X(bi,:) = X(bi,:) - learning_rate*gradi;
                     X(bj,:) = X(bj,:) - learning_rate*gradj;
@@ -165,6 +193,8 @@ for epoch = 1:epochs
                     X(bi,:) = X(bi,:) - learning_rate*Z(bi,:);
                     X(bj,:) = X(bj,:) - learning_rate*Z(bj,:);
                 end
+                dui = - learning_rate*gradi';
+                duj = - learning_rate*gradj';
                 % Update Grammian inverse
                 UpdateGrammian(bi,ui,dui,bj,uj,duj,[],[],[]);             
             elseif strcmp(lossfun,'pair') || strcmp(lossfun,'rank') || strcmp(lossfun,'ranklog') % Pairwise Loss
@@ -196,8 +226,14 @@ for epoch = 1:epochs
     [obj, grad] = ComputeObjGrad(i,j,k,Y,m);
     fhist(epoch) = obj;
     ghist(epoch) = norm(grad,'fro');
-    fprintf(repmat('\b',1,WordCount));
-    WordCount = fprintf('Epoch: %4d, Loss: %8.4e, Grad: %8.4e',epoch, fhist(epoch), ghist(epoch));
+    if strcmp(metric,'none')
+        fprintf(repmat('\b',1,WordCount));
+        WordCount = fprintf('Epoch: %4d, Loss: %8.4e, Grad: %8.4e',epoch, fhist(epoch), ghist(epoch));
+    else
+        ehist(epoch) = Evaluation(it,jt,kt,Yt,mt);
+        fprintf(repmat('\b',1,WordCount));
+        WordCount = fprintf('Epoch: %4d, Loss: %8.4e, %s: %6.4f, Grad: %8.4e',epoch, fhist(epoch), metric, ehist(epoch), ghist(epoch));
+    end
     if mod(epoch,PrintFreq)==0
         WordCount = 0;
         fprintf('\n')
@@ -213,12 +249,15 @@ end
 % Output
 fhist(epoch+1:end) = fhist(epoch);
 ghist(epoch+1:end) = ghist(epoch);
+ehist(epoch+1:end) = ehist(epoch);
 fhist = [ini_fhist, fhist];
 ghist = [ini_ghist, ghist];
+ehist = [ini_ehist, ehist];
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [i,j,k,Y,m] = RetriveData()
 if strcmp(lossfun,'square') || strcmp(lossfun,'1bit') || strcmp(lossfun,'dist') % Pointwise Loss
-    [i,j,val] = find(spmat);
+    [i,j,val] = find(M);
     k = ones(1,numel(i));
     switch lossfun
         case 'square'
@@ -231,7 +270,7 @@ if strcmp(lossfun,'square') || strcmp(lossfun,'1bit') || strcmp(lossfun,'dist') 
 elseif strcmp(lossfun,'pair') || strcmp(lossfun,'rank') || strcmp(lossfun,'ranklog') % Pairwise Loss
     i = cell(1,n); j = cell(1,n); k = cell(1,n); Y = cell(1,n);
     for row = 1:n
-        thisrow = spmat(row,:);
+        thisrow = M(row,:);
         rr = find(thisrow);     % Find indices of nonzero elemt
         nr = numel(rr);
         [jdx,kdx] = find(tril(ones(nr))-1);
@@ -268,18 +307,18 @@ switch lossfun
             E(fdx) = RL;
         end
         Eij = sparse(i,j,E,n,n,m);
-        obj = mean(fvec);
-        grad = (1/m)*(Eij*X+Eij'*X);
+        obj = mean(fvec)+(reg/2)*norm(X,'fro')^2;
+        grad = (1/m)*(Eij*X+Eij'*X)+reg*X;
     case '1bit'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); Yij = Y(fdx);
             RL = X(ii,:)*X(jj,:)';
-            fvec(fdx) =  (1/2)*(RL-spmat(ii,jj))^2;
+            fvec(fdx) =  (1/2)*(RL-M(ii,jj))^2;
             E(fdx) = sigmoid(RL)-Yij;
         end
         Eij = sparse(i,j,E,n,n,m);
-        obj = mean(fvec);
-        grad = (1/m)*(Eij*X+Eij'*X);
+        obj = mean(fvec)+(reg/2)*norm(X,'fro')^2;
+        grad = (1/m)*(Eij*X+Eij'*X)+reg*X;
     case 'dist'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); Mij = Y(fdx);
@@ -288,8 +327,8 @@ switch lossfun
             E(fdx) = RL;
         end
         Eij = sparse(i,j,E,n,n,m); Eii = sparse(i,i,E,n,n,m); Ejj = sparse(j,j,E,n,n,m);
-        obj = mean(fvec);
-        grad = (1/m)*(Eii*X+Ejj*X-Eij*X-Eij'*X);
+        obj = mean(fvec)+(reg/2)*norm(X,'fro')^2;
+        grad = (1/m)*(Eii*X+Ejj*X-Eij*X-Eij'*X)+reg*X;
     case 'pair'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
@@ -298,34 +337,37 @@ switch lossfun
             E(fdx) = RL; 
         end
         Eij = sparse(i,j,E,n,n,m); Eik = sparse(i,k,E,n,n,m);
-        obj =  mean(fvec);
-        grad = (1/m)*(Eij*X+Eij'*X-Eik*X-Eik'*X);
+        obj =  mean(fvec)+(reg/2)*norm(X,'fro')^2;
+        grad = (1/m)*(Eij*X+Eij'*X-Eik*X-Eik'*X)+reg*X;
     case 'rank'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
             RL = Yijk*X(ii,:)*(X(jj,:)-X(kk,:))';
-            fvec(fdx) = double(RL>=0);
+            fvec(fdx) = max(0,-RL);
             E(fdx) = double(RL<0)*-Yijk;
         end
         Eij = sparse(i,j,E,n,n,m); Eik = sparse(i,k,E,n,n,m);
-        obj = mean(fvec);
-        grad = (1/m)*(Eij*X+Eij'*X-Eik*X-Eik'*X);
+        obj = mean(fvec)+(reg/2)*norm(X,'fro')^2;
+        grad = (1/m)*(Eij*X+Eij'*X-Eik*X-Eik'*X)+reg*X;
     case 'ranklog'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
             RL = X(ii,:)*(X(jj,:)-X(kk,:))';
-            fvec(fdx) = double((RL>0 && Yijk == 1) || (RL<=0 && Yijk == 0));
+            if RL > 0
+                fvec(fdx) = log(1+exp(-RL))-(Yijk-1)*RL;
+            else
+                fvec(fdx) = log(1+exp(RL))-Yijk*RL;
+            end
             E(fdx) = sigmoid(RL)-Yijk;
         end
         Eij = sparse(i,j,E,n,n,m); Eik = sparse(i,k,E,n,n,m);
-        obj = mean(fvec);
-        grad = (1/m)*(Eij*X+Eij'*X-Eik*X-Eik'*X);
+        obj = mean(fvec)+(reg/2)*norm(X,'fro')^2;
+        grad = (1/m)*(Eij*X+Eij'*X-Eik*X-Eik'*X)+reg*X;
 end
 end
 
 function grad = ComputePreGrad(i,j,k,Y,m) 
-Xpinv = pinv(X)';
-E = zeros(m,1);
+Xpinv = pinv(X)'; E = zeros(m,1);
 switch lossfun
     case 'square'
         for fdx = 1:m
@@ -333,7 +375,7 @@ switch lossfun
             E(fdx) = X(ii,:)*X(jj,:)' - Mij;
         end
         Eij = sparse(i,j,E,n,n,m);
-        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv);
+        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv)+reg*Xpinv;
     case '1bit'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); Yij = Y(fdx);
@@ -341,7 +383,7 @@ switch lossfun
             E(fdx) = sigmoid(RL)-Yij;
         end
         Eij = sparse(i,j,E,n,n,m);
-        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv);
+        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv)+reg*Xpinv;
     case 'dist'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); Mij = Y(fdx);
@@ -349,14 +391,14 @@ switch lossfun
             E(fdx) = RL;
         end
         Eij = sparse(i,j,E,n,n,m); Eii = sparse(i,i,E,n,n,m); Ejj = sparse(j,j,E,n,n,m);
-        grad = (1/m)*(Eii*Xpinv+Ejj*Xpinv-Eij*Xpinv-Eij'*Xpinv);
+        grad = (1/m)*(Eii*Xpinv+Ejj*Xpinv-Eij*Xpinv-Eij'*Xpinv)+reg*Xpinv;
     case 'pair'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
             E(fdx) = X(ii,:)*(X(jj,:)-X(kk,:))'-Yijk;
         end
         Eij = sparse(i,j,E,n,n,m); Eik = sparse(i,k,E,n,n,m);
-        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv-Eik*Xpinv-Eik'*Xpinv);
+        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv-Eik*Xpinv-Eik'*Xpinv)+reg*Xpinv;
     case 'rank'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
@@ -364,7 +406,7 @@ switch lossfun
             E(fdx) = double(RL<0)*-Yijk;
         end
         Eij = sparse(i,j,E,n,n,m); Eik = sparse(i,k,E,n,n,m);
-        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv-Eik*Xpinv-Eik'*Xpinv);
+        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv-Eik*Xpinv-Eik'*Xpinv)+reg*Xpinv;
     case 'ranklog'
         for fdx = 1:m
             ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
@@ -372,14 +414,62 @@ switch lossfun
             E(fdx) = sigmoid(RL)-Yijk;
         end
         Eij = sparse(i,j,E,n,n,m); Eik = sparse(i,k,E,n,n,m);
-        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv-Eik*Xpinv-Eik'*Xpinv);
+        grad = (1/m)*(Eij*Xpinv+Eij'*Xpinv-Eik*Xpinv-Eik'*Xpinv)+reg*Xpinv;
+end
+end
+
+function [i,j,k,Y,m] = RetriveDataEVAL()
+switch metric
+    case 'none'
+        i = []; j = []; k = []; Y = [];
+    case 'RMSE'
+        [i,j,val] = find(M_true);
+        k = ones(1,numel(i));
+        Y = val;
+    case 'AUC'
+        i = cell(1,n); j = cell(1,n); k = cell(1,n); Y = cell(1,n);
+        for row = 1:n
+            thisrow = M_true(row,:);
+            rr = find(thisrow);     % Find indices of nonzero elemt
+            nr = numel(rr);
+            [jdx,kdx] = find(tril(ones(nr))-1);
+            i{row} = row*ones(1,nr*(nr-1)/2);
+            j{row} = rr(jdx);
+            k{row} = rr(kdx);
+            pairdif = thisrow(j{row})-thisrow(k{row});
+            Y{row}(pairdif> 0) =  1;
+            Y{row}(pairdif<=0) =  0;
+        end
+        i = cell2mat(i); j = cell2mat(j); k = cell2mat(k); Y = cell2mat(Y);
+    otherwise
+        error('Choose a valid evaluation metric')
+end
+m = numel(i);
+end
+
+function eva = Evaluation(i,j,k,Y,m)
+avec = zeros(1,m);
+switch metric
+    case 'RMSE'
+        for fdx = 1:m
+            ii = i(fdx); jj = j(fdx); Mij = Y(fdx);
+            RL = X(ii,:)*X(jj,:)'-Mij;
+            avec(fdx) = (RL)^2;
+        end
+        eva = sqrt(mean(avec));
+    case 'AUC'
+        for fdx = 1:m
+            ii = i(fdx); jj = j(fdx); kk = k(fdx); Yijk = Y(fdx);
+            RL = X(ii,:)*(X(jj,:)-X(kk,:))';
+            avec(fdx) = double((RL>0 && Yijk == 1) || (RL<=0 && Yijk == 0));
+        end
+        eva = mean(avec);
 end
 end
 
 function UpdateGrammian(i,xi,dxi,j,xj,dxj,k,xk,dxk)
 % Xnew'*Xnew = X'*X + L*D*L';
 % Pnew = P - P*L*inv(inv(D) + L'*P*L)*L'*P
-
 if strcmp(lossfun,'square') || strcmp(lossfun,'1bit') || strcmp(lossfun,'dist') % Pointwise Loss
     if i == j
         invD = B1;

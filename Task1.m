@@ -3,11 +3,11 @@ clc;clear
 addpath Functions
 % 30 x 30 symmetric well condtioned matrix, rank = 3
 loader = load('Data/SYN_WELL30.mat'); 
-M_SynWell30 = loader.M;
+MW_true = loader.M;
 
 % 30 x 30 symmetric ill condtioned matrix, rank = 3
 loader = load('Data/SYN_ILL30.mat'); 
-M_SynIll30 = loader.M;
+MI_true = loader.M;
 
 n = 30;
 r = 3;
@@ -15,29 +15,29 @@ r = 3;
 %% Show SGD works well for well conditon, ScaleSGD workds well for both well and ill condition (n^2 samples)
 
 % Sample Ground Truth
-m = n^2;
-spmat_SynWell30 = sampling(M_SynWell30,m);
-spmat_SynIll30 = sampling(M_SynIll30,m);
+percent = 100;
+MW = sampling(MW_true,percent);
+MI = sampling(MI_true,percent);
 
 epochs = 500;
-learning_rate = 0.2; 
+lr = 0.3; 
 lossfun = 'square';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Well SDG %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(1); X0 = randn(n,r);
-[~, fsgdwell, ~] = psd_sgd(spmat_SynWell30, r, epochs, learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fsgdwell, ~] = psd_sgd(MW, r, epochs, lr, lossfun, [], [], [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Ill SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(1); X0 = randn(n,r);
-[~, fsgdill, ~] = psd_sgd(spmat_SynIll30, r, epochs, learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fsgdill, ~] = psd_sgd(MI, r, epochs, lr, lossfun, [], [], [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Well ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(1); X0 = randn(n,r);
-[~, fscsgdwell, ~] = psd_scalesgd(spmat_SynWell30, r, epochs, 1.5*learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fscsgdwell, ~] = psd_scalesgd(MW, r, epochs, 1.5*lr, lossfun, [], [], [], X0);fprintf('\n')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Ill ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rng(1); X0 = randn(n,r);
-[~, fscsgdill, ~] = psd_scalesgd(spmat_SynIll30, r, epochs, 1.5*learning_rate, [], [], X0, lossfun);fprintf('\n')
+[~, fscsgdill, ~] = psd_scalesgd(MI, r, epochs, 1.5*lr, lossfun, [], [], [], X0);fprintf('\n')
 
 % Plot PrecSGD vs SGD (Well condition and Ill condition)
 xlimit = 50;
