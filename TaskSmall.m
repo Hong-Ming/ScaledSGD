@@ -38,9 +38,9 @@ i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
 spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
 %save TaskSmallData spdata n_movie
 
-%%
-clear
-load TaskSmallData;
+% %%
+% clear
+% load TaskSmallData;
 %%
 rng(0);
 [X,ftrain1,ftest1,etrain1,etest1,gradnrm1] = ...

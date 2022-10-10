@@ -44,5 +44,5 @@ xlimit = 50;
 plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit);
 
 %% Plot PrecSGD vs SGD (Well condition and Ill condition)
-xlimit = 50;
-plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit);
+% xlimit = 50;
+% plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit);

@@ -43,6 +43,6 @@ rng(1); X0 = randn(n,r);
 xlimit = 200;
 plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit);
 
-%% Plot PrecSGD vs SGD (Well condition and Ill condition)
-xlimit = 200;
-plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit);
+% %% Plot PrecSGD vs SGD (Well condition and Ill condition)
+% xlimit = 200;
+% plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit);

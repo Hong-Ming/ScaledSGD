@@ -1,9 +1,6 @@
 function plotfig(fscsgdwell,fsgdwell,fscsgdill,fsgdill,xlimit)
 % color for plot
-Starford_Red   = '#8C1515';
 Illini_Orange  = '#DD3403';
-Michigan_Yaize = '#FFCB05';
-Rackham_Green  = '#75988d';
 Illini_Blue    = '#13294B';
 figure;
 hold on
@@ -30,7 +27,7 @@ set(gca,'fontsize',20)
 title('Ill-conditioned','interpreter','latex','FontSize',25);
 xlabel('Epochs','interpreter','latex','FontSize',25);
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25);
-legend('ScaleSGD','SGD','location','ne','FontSize',25);
+legend('ScaledSGD','SGD','location','ne','FontSize',25);
 xlim([0 xlimit])
 yticks([1e-18 1e-14 1e-10 1e-6 1e-2 1e2])
 ylim([1e-18,1e2])
