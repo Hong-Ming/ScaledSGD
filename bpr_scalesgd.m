@@ -7,8 +7,8 @@ function [X,ftrain,ftest,etrain,etest,gradnrm] = bpr_scalesgd(spdata, n, r, epoc
 % epochs is the total number of times to sweep the data.
 
 % Parameter
-Momentum = 0;
-Minibatch = 64;
+Momentum = 0.9;
+Minibatch = 1;
 Threshold = 1e-16;
 PrintFreq = 200;
 test_size_size = round(0.02*size(spdata,1));
@@ -74,16 +74,16 @@ for epoch = 1:epochs
         % note use of element-wise multiplication
         dui = P*(xj-xk); dujk = P*xi;
         if Momentum > 0
-            vi_new = vi + grad.*dui;
-            vj_new = vj + grad.*dujk;
-            vk_new = vk + grad.*dujk;
-            xi_new = xi - learning_rate*vi_new;
-            xj_new = xj - learning_rate*vj_new;
-            xk_new = xk - learning_rate*vk_new;
+            vi_new = Momentum*vi - grad.*dui;
+            vj_new = Momentum*vj - grad.*dujk;
+            vk_new = Momentum*vk + grad.*dujk;
+            xi_new = xi + learning_rate*vi_new;
+            xj_new = xj + learning_rate*vj_new;
+            xk_new = xk + learning_rate*vk_new;
         else
             xi_new = xi - learning_rate*(grad.*dui);
             xj_new = xj - learning_rate*(grad.*dujk);
-            xk_new = xk - learning_rate*(grad.*dujk);
+            xk_new = xk + learning_rate*(grad.*dujk);
         end
         
         if doScale
