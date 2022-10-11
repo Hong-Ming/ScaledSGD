@@ -28,20 +28,20 @@ learning_rate = 0.002;
 lossfun = 'dist';
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Well SDG %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-rng(1); X0 = randn(n,r);
-[~, fsgdwell, ~] = psd_sgd(spmat_WELL, r, epochs, 10*learning_rate, lossfun, [], [], [], X0);fprintf('\n')
+rng(1); fprintf('\n')
+[~, fsgdwell] = sgd(spmat_WELL, r, epochs, 10*learning_rate, lossfun);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Ill SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-rng(1); X0 = randn(n,r);
-[~, fsgdill, ~] = psd_sgd(spmat_ILL, r, epochs, learning_rate, lossfun, [], [], [], X0);fprintf('\n')
+rng(1); fprintf('\n')
+[~, fsgdill] = sgd(spmat_ILL, r, epochs, learning_rate, lossfun);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Well ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-rng(1); X0 = randn(n,r);
-[~, fscsgdwell, ~] = psd_scalesgd(spmat_WELL, r, epochs, 100*learning_rate, lossfun, [], [], [], X0);fprintf('\n')
+rng(1); fprintf('\n')
+[~, fscsgdwell] = scaledsgd(spmat_WELL, r, epochs, 100*learning_rate, lossfun);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Syn Ill ScaleSGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-rng(1); X0 = randn(n,r);
-[~, fscsgdill, ~] = psd_scalesgd(spmat_ILL, r, epochs, 100*learning_rate, lossfun, [], [], [], X0);fprintf('\n')
+rng(1); fprintf('\n')
+[~, fscsgdill] = scaledsgd(spmat_ILL, r, epochs, 100*learning_rate, lossfun);
 
 %% Plot ScaleSGD vs SGD (Well condition and Ill condition)
 xlimit = inf;
@@ -55,7 +55,7 @@ set(gca,'fontsize',20)
 title('Uniform in Cube (Well-Conditioned)','interpreter','latex','FontSize',25);
 xlabel('Epochs','interpreter','latex','FontSize',25);
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25);
-legend('ScaleSGD','SGD','location','ne','FontSize',25);
+legend('ScaledSGD','SGD','location','ne','FontSize',25);
 xlim([0 xlimit])
 yticks([1e-18 1e-14 1e-10 1e-6 1e-2 1e2])
 ylim([1e-18,1e2])
@@ -70,7 +70,7 @@ set(gca,'fontsize',20)
 title('With Outliers (Ill-Conditioned)','interpreter','latex','FontSize',25);
 xlabel('Epochs','interpreter','latex','FontSize',25);
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25);
-legend('ScaleSGD','SGD','location','ne','FontSize',25);
+legend('ScaledSGD','SGD','location','ne','FontSize',25);
 xlim([0 xlimit])
 yticks([1e-18 1e-14 1e-10 1e-6 1e-2 1e2])
 ylim([1e-18,1e2])

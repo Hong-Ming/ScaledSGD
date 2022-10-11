@@ -1,4 +1,4 @@
-function [X,ftrain,ftest,etrain,etest,gradnrm] = bpr_scalesgd(spdata, n, r, epochs, learning_rate, doScale)
+function [X,ftrain,ftest,etrain,etest] = bpr_scalesgd(spdata, d, r, epochs, learning_rate, doScale)
 % Spdata must be supplied in four columns [i, j, k, Yijk] 
 % with Yijk = 1 if item i is "closer" to item j than to item k, 
 % and  Yijk = 0 if item i is "closer" to item k than to item j, 
@@ -7,7 +7,7 @@ function [X,ftrain,ftest,etrain,etest,gradnrm] = bpr_scalesgd(spdata, n, r, epoc
 % epochs is the total number of times to sweep the data.
 
 % Parameter
-Momentum = 0.9;
+Momentum = 0;
 Minibatch = 1;
 Threshold = 1e-16;
 PrintFreq = 200;
@@ -31,18 +31,17 @@ ftrain = inf(1,epochs); % history of residuals
 ftest = inf(1,epochs); % history of residuals
 etrain = inf(1,epochs); % history of auc score
 etest = inf(1,epochs); % history of residuals
-gradnrm = inf(1,epochs); % history of gradient norm
 WordCount = 0;         % word counter
 
 % Print info
-X = randn(n,r); P = inv(X'*X); V = zeros(n,r);
+X = randn(d,r); P = inv(X'*X); V = zeros(d,r);
 if ~doScale, P = eye(r); end
 w1 = fprintf(repmat('*',1,65));fprintf('*\n');
 w2 = fprintf('* search rank: %d, epochs: %d, learning rate: %3.1e, scale: %d',r,epochs,learning_rate,doScale);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 fprintf(repmat('*',1,65));fprintf('*\n');
 
-[ini_ftrain, ini_etrain, ini_gradnrm] = Evaluate(train_set, X);
+[ini_ftrain, ini_etrain] = Evaluate(train_set, X);
 [ini_ftest, ini_etest] = Evaluate(test_set, X);
 
 % Start ScaleSGD
@@ -116,10 +115,10 @@ for epoch = 1:epochs
     end
     
     % Print objective value and gradient norm
-    [ftrain(epoch), etrain(epoch), gradnrm(epoch)] = Evaluate(train_set, X);
+    [ftrain(epoch), etrain(epoch)] = Evaluate(train_set, X);
     [ftest(epoch), etest(epoch)] = Evaluate(test_set, X);
     fprintf(repmat('\b',1,WordCount));
-    WordCount = fprintf('Epoch: %4d, \n Loss(train): %8.4e, \n Loss(test): %8.4e, \n AUC(train): %6.4f, \n AUC(test): %6.4f \n Grad: %8.4e',epoch, ftrain(epoch), ftest(epoch), etrain(epoch), etest(epoch), gradnrm(epoch));
+    WordCount = fprintf('Epoch: %4d, Loss(train/test): %5.3e/%5.3e, AUC(train/test): %6.4f/%6.4f',epoch, ftrain(epoch), ftest(epoch), etrain(epoch), etest(epoch));
     if mod(epoch,PrintFreq)==0
         WordCount = 0;
         fprintf('\n')
@@ -137,12 +136,10 @@ ftrain(epoch+1:end) = ftrain(epoch);
 ftest(epoch+1:end) = ftest(epoch);
 etrain(epoch+1:end) = etrain(epoch);
 etest(epoch+1:end) = etest(epoch);
-gradnrm(epoch+1:end) = gradnrm(epoch);
 ftrain = [ini_ftrain, ftrain];
 ftest = [ini_ftest, ftest];
 etrain = [ini_etrain, etrain];
 etest = [ini_etest, etest];
-gradnrm = [ini_gradnrm, gradnrm];
 end
 
 function [obj, err, gradnrm] = Evaluate(spdata,X)

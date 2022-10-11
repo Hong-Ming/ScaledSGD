@@ -16,7 +16,39 @@ M = U*diag(s)*U';
 filename = ['SYN_ILL', num2str(n),'.mat'];
 save(fullfile('Data',filename),'M','r')
 
-%% Euclidean Distance Matrix
+%% Synthetic data noisy case (n x n Symmetric Matrix with Rank r)
+clear;
+rng(1)    % Random seed
+n = 30;   % Size of matrix
+r = 3;    % Rank
+SNR = 15; % Signal to noise ratio
+
+% Generate well-conditioned n x n symmetric matrix with rank r
+U = orth(randn(n,n));
+s = [10*ones(1,r),zeros(1,n-r)];
+M = U*diag(s)*U';
+% Generate noise
+rng(1)
+sigma = mean(M(:).^2)/10^(SNR/10);
+noise = sqrt(sigma)*randn(n);
+noise = (noise+noise').*((1/2-1/sqrt(2))*eye(n)+1/sqrt(2));
+M = M + noise;
+filename = ['SYN_WELL_Noise', num2str(n),'.mat'];
+save(fullfile('Data',filename),'M','r', 'SNR')
+
+% Generate ill-conditioned n x n symmetric matrix with rank r
+s = [10.^(-2*(0:r-1)+1),zeros(1,n-r)];
+M = U*diag(s)*U';
+% Generate noise
+rng(1)
+sigma = mean(M(:).^2)/10^(SNR/10);
+noise = sqrt(sigma)*randn(n);
+noise = (noise+noise').*((1/2-1/sqrt(2))*eye(n)+1/sqrt(2));
+M = M + noise;
+filename = ['SYN_ILL_Noise', num2str(n),'.mat'];
+save(fullfile('Data',filename),'M','r','SNR')
+
+%% Euclidean Distance Matrix Completion (EDM)
 % Generate n x n Euclidean distance matrix D where D(i,j) = |xi-xj|^2 and 
 % x1,...,xn are points in 3 dimensional space
 
@@ -65,111 +97,128 @@ r = rank(M);
 filename = ['EDM_ILL', num2str(n),'.mat'];
 save(fullfile('Data',filename),'D','M','X','r')
 
-%% Collaborative Filtering (Jester)
-% Generate ground truth item-item matrix using user-item from jester
-% dataset (https://eigentaste.berkeley.edu/dataset/)
-
-clear;
-data = readmatrix('Data/jester-data-3.xls');
-num_rate = data(:,1);
-UserItem = data(:,2:end);
-UserItem(UserItem==99) = 0;
-n = size(UserItem,2);
-% Calculate the item-item matrix
-ItemItem = zeros(n,n);
-for i = 1:n
-    for j = i:n
-        ItemItem(i,j) = (UserItem(:,i)'*UserItem(:,j))/(norm(UserItem(:,i),2)*norm(UserItem(:,j),2));
-        ItemItem(j,i) = ItemItem(i,j);
-    end
-end
-r = rank(ItemItem);
-filename = 'JESTER.mat';
-save(fullfile('Data',filename),'data','UserItem','ItemItem','r')
-
-%% Collaborative Filtering (MovieLens)
+%% Collaborative Filtering (MovieLens 500k)
 % Generate ground truth item-item matrix using user-item from movielens
 % dataset (https://grouplens.org/datasets/movielens/)
+clear;
+data=readmatrix('Data/ratings_sm.csv');
+n_user = max(data(:,1));
+n_movie = max(data(:,2));
+m = 5e5;
 
+% Form the user-item matrix
+UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
+ItemCount = full(sum(logical(UserItem))); 
+
+% Delete items with too few users and update number of movies
+ItemKeep = ItemCount>3;
+UserItem = UserItem(:,ItemKeep);
+ItemNorm = full(sqrt(sum(UserItem).^2));
+n_movie = numel(ItemNorm);
+
+% Generate dense item-item matrix
+ItemItem = full(UserItem'*UserItem);
+ItemItem = ItemItem./ItemNorm;
+ItemItem = ItemItem./ItemNorm';
+
+% Generate random item-item content
+idx = randperm(n_movie^3, m);
+[i,j,k] = ind2sub(n_movie*[1,1,1], idx);
+idx_ij = sub2ind(n_movie*[1,1], i, j);
+idx_ik = sub2ind(n_movie*[1,1], i, k);
+Mij = ItemItem(idx_ij); Mik = ItemItem(idx_ik);
+Yijk = sign(Mij - Mik);
+
+% Strip the comparisons with Mij = Mik since these do not affect training
+keep = Yijk ~= 0;
+i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+
+% Output sparse data
+spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
+
+filename = 'MovieLens_small.mat';
+save(fullfile('Data',filename), 'spdata', 'n_movie')
+
+%% Collaborative Filtering (MovieLens 2.7M)
+% Generate ground truth item-item matrix using user-item from movielens
+% dataset (https://grouplens.org/datasets/movielens/)
 clear;
 data=readmatrix('Data/ratings.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
+m = 2.7e6;
 
-% Forming the user-item matrix
+% Form the user-item matrix
 UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
-% UserItem = zeros(n_user,n_movie);
-% for i=1:size(data,1)
-%    UserItem(data(i,1),data(i,2)) = data(i,3); 
-% end
-UserItem = UserItem(:,any(UserItem));
-n_user = size(UserItem,1);
-n_movie = size(UserItem,2);
+% ItemCount = sum(logical(UserItem),1);
+ItemNorm = full(sqrt(sum(UserItem.^2,1)));
 
-% Calculate the item-item matrix
-ItemItem = zeros(n_movie,n_movie);
-for i = 1:n_movie
-    if mod(i,1000)==0
-       disp(i) 
-    end
-    for j = i:n_movie
-        ItemItem(i,j) = (UserItem(:,i)'*UserItem(:,j))/(norm(UserItem(:,i),2)*norm(UserItem(:,j),2));
-        ItemItem(j,i) = ItemItem(i,j);
-    end
+% Delete items with no movies and update number of movies
+ItemKeep = ItemNorm>0;
+UserItem = UserItem(:,ItemKeep);
+ItemNorm = ItemNorm(ItemKeep);
+n_movie = numel(ItemNorm);
+
+idx = randperm(n_movie^3, m);
+[i,j,k] = ind2sub(n_movie*[1,1,1], idx);
+Yijk = zeros(m,1);
+for idx = 1:m
+    ii = i(idx); jj = j(idx); kk = k(idx);
+    Mij = UserItem(:,ii)'*UserItem(:,jj);
+    Mik = UserItem(:,ii)'*UserItem(:,kk);
+    Yijk(idx) = sign(Mij - Mik);
+    if mod(idx,1e4)==0, disp(idx); end
 end
-r = rank(ItemItem);
-filename = 'MOVIELENS.mat';
-save(fullfile('Data',filename),'data','UserItem','ItemItem','r')
 
-%% Synthetic data noisy case (n x n Symmetric Matrix with Rank r)
+% Strip the comparisons with Mij = Mik since these do not affect training
+keep = Yijk ~= 0;
+i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+
+% Output sparse data
+spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
+filename = 'MovieLens2.7M.mat';
+save(fullfile('Data',filename), 'spdata', 'n_movie')
+
+%% Collaborative Filtering (MovieLens 10M)
+% Generate ground truth item-item matrix using user-item from movielens
+% dataset (https://grouplens.org/datasets/movielens/)
 clear;
-rng(1)    % Random seed
-n = 30;   % Size of matrix
-r = 3;    % Rank
-SNR = 15; % Signal to noise ratio
+data=readmatrix('Data/ratings.csv');
+n_user = max(data(:,1));
+n_movie = max(data(:,2));
+m = 1e7;
 
-% Generate well-conditioned n x n symmetric matrix with rank r
-U = orth(randn(n,n));
-s = [10*ones(1,r),zeros(1,n-r)];
-M = U*diag(s)*U';
-% Generate noise
-rng(1)
-sigma = mean(M(:).^2)/10^(SNR/10);
-noise = sqrt(sigma)*randn(n);
-noise = (noise+noise').*((1/2-1/sqrt(2))*eye(n)+1/sqrt(2));
-M = M + noise;
-filename = ['SYN_WELL_Noise', num2str(n),'.mat'];
-save(fullfile('Data',filename),'M','r', 'SNR')
+% Form the user-item matrix
+UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
+% ItemCount = sum(logical(UserItem),1);
+ItemNorm = full(sqrt(sum(UserItem.^2,1)));
 
-% Generate ill-conditioned n x n symmetric matrix with rank r
-s = [10.^(-2*(0:r-1)+1),zeros(1,n-r)];
-M = U*diag(s)*U';
-% Generate noise
-rng(1)
-sigma = mean(M(:).^2)/10^(SNR/10);
-noise = sqrt(sigma)*randn(n);
-noise = (noise+noise').*((1/2-1/sqrt(2))*eye(n)+1/sqrt(2));
-M = M + noise;
-filename = ['SYN_ILL_Noise', num2str(n),'.mat'];
-save(fullfile('Data',filename),'M','r','SNR')
+% Delete items with no movies and update number of movies
+ItemKeep = ItemNorm>0;
+UserItem = UserItem(:,ItemKeep);
+ItemNorm = ItemNorm(ItemKeep);
+n_movie = numel(ItemNorm);
 
-%% Synthetic data (n x n Asymmetric Matrix with Rank r)
-rng(1)   % Random seed
-n = 30;  % Size of matrix
-r = 3;   % Rank
-% Generate well-conditioned n x n asymmetric matrix with rank r
-U = orth(randn(n,n));
-V = orth(randn(n,n));
-s = [2*ones(1,r),zeros(1,n-r)];
-M = U*diag(s)*V';
-filename = ['ASYN_Well', num2str(n),'.mat'];
-save(fullfile('Data',filename),'M','r')
+idx = randperm(n_movie^3, m);
+[i,j,k] = ind2sub(n_movie*[1,1,1], idx);
+Yijk = zeros(m,1);
+for idx = 1:m
+    ii = i(idx); jj = j(idx); kk = k(idx);
+    Mij = UserItem(:,ii)'*UserItem(:,jj);
+    Mik = UserItem(:,ii)'*UserItem(:,kk);
+    Yijk(idx) = sign(Mij - Mik);
+    if mod(idx,1e4)==0, disp(idx); end
+end
 
-% Generate ill-conditioned n x n asymmetric matrix with rank r
-s = [10.^(-2*(0:r-1)+1),zeros(1,n-r)];
-M = U*diag(s)*V';
-filename = ['ASYN_ILL', num2str(n),'.mat'];
-save(fullfile('Data',filename),'M','r')
+% Strip the comparisons with Mij = Mik since these do not affect training
+keep = Yijk ~= 0;
+i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+
+% Output sparse data
+spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
+filename = 'MovieLens10M.mat';
+save(fullfile('Data',filename), 'spdata', 'n_movie')
+
 
 
 

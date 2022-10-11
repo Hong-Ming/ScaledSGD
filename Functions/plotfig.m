@@ -12,7 +12,7 @@ set(gca,'fontsize',20)
 title('Well-conditioned','interpreter','latex','FontSize',25);
 xlabel('Epochs','interpreter','latex','FontSize',25);
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25);
-legend('ScaleSGD','SGD','location','ne','FontSize',25);
+legend('ScaledSGD','SGD','location','ne','FontSize',25);
 xlim([0 xlimit])
 yticks([1e-18 1e-14 1e-10 1e-6 1e-2 1e2])
 ylim([1e-18,1e2])
