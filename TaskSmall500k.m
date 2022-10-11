@@ -10,10 +10,10 @@ learning_rate_sgd = 1e-1;
 learning_rate_scaledsgd = 1e2;
 
 rng(1); fprintf('\n')
-[~,fsgd,~,esgd,esgdt] = bpr_scalesgd(spdata, d, r, epochs, learning_rate_sgd, false);
+[~,fsgd,~,esgd,esgdt] = bpr_scaledsgd(spdata, d, r, epochs, learning_rate_sgd, false);
 
 rng(1); fprintf('\n')
-[~,fscsgd,~,escsgd,escsgdt] = bpr_scalesgd(spdata, d, r, epochs, learning_rate_scaledsgd, true);
+[~,fscsgd,~,escsgd,escsgdt] = bpr_scaledsgd(spdata, d, r, epochs, learning_rate_scaledsgd, true);
 
 save('TaskSmall500k.mat','fsgd','fscsgd','esgd','escsgd','esgdt','escsgdt')
 

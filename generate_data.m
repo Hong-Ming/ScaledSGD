@@ -101,6 +101,7 @@ save(fullfile('Data',filename),'D','M','X','r')
 % Generate ground truth item-item matrix using user-item from movielens
 % dataset (https://grouplens.org/datasets/movielens/)
 clear;
+rng(1)    % Random seed
 data=readmatrix('Data/ratings_sm.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
@@ -113,7 +114,7 @@ ItemCount = full(sum(logical(UserItem)));
 % Delete items with too few users and update number of movies
 ItemKeep = ItemCount>3;
 UserItem = UserItem(:,ItemKeep);
-ItemNorm = full(sqrt(sum(UserItem).^2));
+ItemNorm = full(sqrt(sum(UserItem.^2,1)));
 n_movie = numel(ItemNorm);
 
 % Generate dense item-item matrix
@@ -132,17 +133,27 @@ Yijk = sign(Mij - Mik);
 % Strip the comparisons with Mij = Mik since these do not affect training
 keep = Yijk ~= 0;
 i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+Yijk = (Yijk+1)/2;
+
+% Compute nonpersonalize lowerbound on AUC
+np_max = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
+np_max = sum(np_max,1);
+% thelower = thelower(:);
+np_max = np_max(j)-np_max(k);
+np_max = ((np_max > 0) & Yijk) | ((np_max < 0) & ~Yijk);
+np_max = mean(np_max);
 
 % Output sparse data
-spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
+spdata = [i(:),j(:),k(:),Yijk(:)];
 
 filename = 'MovieLens_small.mat';
-save(fullfile('Data',filename), 'spdata', 'n_movie')
+save(fullfile('Data',filename), 'spdata', 'n_movie', 'np_max')
 
 %% Collaborative Filtering (MovieLens 2.7M)
 % Generate ground truth item-item matrix using user-item from movielens
 % dataset (https://grouplens.org/datasets/movielens/)
 clear;
+rng(1)    % Random seed
 data=readmatrix('Data/ratings.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
@@ -150,7 +161,6 @@ m = 2.7e6;
 
 % Form the user-item matrix
 UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
-% ItemCount = sum(logical(UserItem),1);
 ItemNorm = full(sqrt(sum(UserItem.^2,1)));
 
 % Delete items with no movies and update number of movies
@@ -161,28 +171,36 @@ n_movie = numel(ItemNorm);
 
 idx = randperm(n_movie^3, m);
 [i,j,k] = ind2sub(n_movie*[1,1,1], idx);
-Yijk = zeros(m,1);
+Mij = zeros(1,m); Mik = zeros(1,m);
 for idx = 1:m
     ii = i(idx); jj = j(idx); kk = k(idx);
-    Mij = UserItem(:,ii)'*UserItem(:,jj);
-    Mik = UserItem(:,ii)'*UserItem(:,kk);
-    Yijk(idx) = sign(Mij - Mik);
+    Mij(idx) = UserItem(:,ii)'*UserItem(:,jj)/(ItemNorm(ii)*ItemNorm(jj));
+    Mik(idx) = UserItem(:,ii)'*UserItem(:,kk)/(ItemNorm(ii)*ItemNorm(kk));
     if mod(idx,1e4)==0, disp(idx); end
 end
-
+Yijk = sign(Mij - Mik);
 % Strip the comparisons with Mij = Mik since these do not affect training
 keep = Yijk ~= 0;
 i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+Yijk = (Yijk+1)/2;
+
+% Compute nonpersonalize lowerbound on AUC
+np_max = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
+np_max = sum(np_max,1);
+np_max = np_max(j)-np_max(k);
+np_max = ((np_max > 0) & Yijk) | ((np_max < 0) & ~Yijk);
+np_max = mean(np_max);
 
 % Output sparse data
-spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
+spdata = [i(:),j(:),k(:),Yijk(:)];
 filename = 'MovieLens2.7M.mat';
-save(fullfile('Data',filename), 'spdata', 'n_movie')
+save(fullfile('Data',filename), 'spdata', 'n_movie', 'np_max')
 
 %% Collaborative Filtering (MovieLens 10M)
 % Generate ground truth item-item matrix using user-item from movielens
 % dataset (https://grouplens.org/datasets/movielens/)
 clear;
+rng(1)    % Random seed
 data=readmatrix('Data/ratings.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
@@ -190,7 +208,6 @@ m = 1e7;
 
 % Form the user-item matrix
 UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
-% ItemCount = sum(logical(UserItem),1);
 ItemNorm = full(sqrt(sum(UserItem.^2,1)));
 
 % Delete items with no movies and update number of movies
@@ -201,21 +218,28 @@ n_movie = numel(ItemNorm);
 
 idx = randperm(n_movie^3, m);
 [i,j,k] = ind2sub(n_movie*[1,1,1], idx);
-Yijk = zeros(m,1);
+Mij = zeros(1,m); Mik = zeros(1,m);
 for idx = 1:m
     ii = i(idx); jj = j(idx); kk = k(idx);
-    Mij = UserItem(:,ii)'*UserItem(:,jj);
-    Mik = UserItem(:,ii)'*UserItem(:,kk);
-    Yijk(idx) = sign(Mij - Mik);
+    Mij(idx) = UserItem(:,ii)'*UserItem(:,jj)/(ItemNorm(ii)*ItemNorm(jj));
+    Mik(idx) = UserItem(:,ii)'*UserItem(:,kk)/(ItemNorm(ii)*ItemNorm(kk));
     if mod(idx,1e4)==0, disp(idx); end
 end
-
+Yijk = sign(Mij - Mik);
 % Strip the comparisons with Mij = Mik since these do not affect training
 keep = Yijk ~= 0;
 i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+Yijk = (Yijk+1)/2;
+
+% Compute nonpersonalize lowerbound on AUC
+np_max = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
+np_max = sum(np_max,1);
+np_max = np_max(j)-np_max(k);
+np_max = ((np_max > 0) & Yijk) | ((np_max < 0) & ~Yijk);
+np_max = mean(np_max);
 
 % Output sparse data
-spdata = [i(:),j(:),k(:),(Yijk(:)+1)/2];
+spdata = [i(:),j(:),k(:),Yijk(:)];
 filename = 'MovieLens10M.mat';
 save(fullfile('Data',filename), 'spdata', 'n_movie')
 

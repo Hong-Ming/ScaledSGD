@@ -9,10 +9,10 @@ lr_pgd = 1e-1;
 lr_scaledpgd = 1e2;
 
 rng(1); fprintf('\n')
-[~,fsgd,~,esgd,esgdt] = bpr_scalesgd(spdata, d, r, epochs, lr_pgd, false);
+[~,fsgd,~,esgd,esgdt] = bpr_scaledsgd(spdata, d, r, epochs, lr_pgd, false);
 
 rng(1); fprintf('\n')
-[~,fscsgd,~,escsgd,escsgdt] = bpr_scalesgd(spdata, d, r, epochs, lr_scaledpgd, true);
+[~,fscsgd,~,escsgd,escsgdt] = bpr_scaledsgd(spdata, d, r, epochs, lr_scaledpgd, true);
 
 save('TaskLarge2.7M.mat','fsgd','fscsgd','esgd','escsgd','esgdt','escsgdt')
 

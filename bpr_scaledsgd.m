@@ -1,8 +1,8 @@
-function [X,ftrain,ftest,etrain,etest] = bpr_scalesgd(spdata, d, r, epochs, learning_rate, doScale)
+function [X,ftrain,ftest,etrain,etest] = bpr_scaledsgd(spdata, d, r, epochs, learning_rate, doScale)
 % Spdata must be supplied in four columns [i, j, k, Yijk] 
 % with Yijk = 1 if item i is "closer" to item j than to item k, 
 % and  Yijk = 0 if item i is "closer" to item k than to item j, 
-% n is the total number of items
+% d is the total number of items
 % r is the dimension of the underlying latent / feature space
 % epochs is the total number of times to sweep the data.
 
@@ -28,10 +28,10 @@ test_set = spdata(perm(1:test_size_size),:);
 train_set = spdata(perm(test_size_size+1:end),:);
 
 ftrain = inf(1,epochs); % history of residuals
-ftest = inf(1,epochs); % history of residuals
+ftest = inf(1,epochs);  % history of residuals
 etrain = inf(1,epochs); % history of auc score
-etest = inf(1,epochs); % history of residuals
-WordCount = 0;         % word counter
+etest = inf(1,epochs);  % history of residuals
+WordCount = 0;          % word counter
 
 % Print info
 X = randn(d,r); P = inv(X'*X); V = zeros(d,r);
