@@ -62,11 +62,10 @@ V = zeros(d,r);        % initial velocity of X
 P = inv(X'*X);         % initail preconditioner
 fval = inf(1,epochs);  % history of residuals
 PrintFreq = 200;       % for display
-WordCount = 0;         % word counter
 
 % print info
 w1 = fprintf(repmat('*',1,65));fprintf('*\n');
-w2 = fprintf('* Solver: SGD,  Loss Function: %s loss',lossfun);
+w2 = fprintf('* Solver: ScaledSGD,  Loss Function: %s loss',lossfun);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 w2 = fprintf('* search rank: %d, epochs: %d, learning rate: %3.1e',r,epochs,learning_rate);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
@@ -77,7 +76,6 @@ fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 fprintf(repmat('*',1,65));fprintf('*\n');
 
 [ini_fval, grad] = ComputeObjGrad(i,j,Y,m);
-fprintf(repmat('\b',1,WordCount));
 WordCount = fprintf('Epoch: %4d, Loss: %8.4e, Grad: %8.4e',0, ini_fval, norm(grad,'fro'));
 
 % Start SGD

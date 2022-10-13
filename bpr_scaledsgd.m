@@ -1,148 +1,141 @@
-function [X,ftrain,ftest,etrain,etest] = bpr_scaledsgd(spdata, d, r, epochs, learning_rate, doScale)
-% Spdata must be supplied in four columns [i, j, k, Yijk] 
-% with Yijk = 1 if item i is "closer" to item j than to item k, 
-% and  Yijk = 0 if item i is "closer" to item k than to item j, 
-% d is the total number of items
-% r is the dimension of the underlying latent / feature space
-% epochs is the total number of times to sweep the data.
+function [X,fval,auc] = bpr_scaledsgd(spdata, d, r, epochs, learning_rate, doScale, momentum)
+% [X,Fval] = BRP_SCALEDSGD(spdata, d, r, epochs, learning_rate, momentum) 
+% 
+% BRP_SCALEDSGD   Scaled stochastic gradient descent algorithm for solving large, 
+%                 sparse, and symmetric matrix completion problem.
+% 
+% >  [X] = BRP_SCALEDSGD(spdata, d, r) performs stochastic gradient descent to compute an d x r 
+%       factor X of M.
+% 
+% >  [X] = BRP_SCALEDSGD(spdata, d, r, epochs, learning_rate) specify the maximum number of
+%       epochs (default to 500) and the learning rate (default to 1e-2).
+% 
+% >  [X] = BRP_SCALEDSGD(M, r, epochs, learning_rate, lossfun, momentum, minibatch, reg) also 
+%       specify the momentum (default to 0) and minibatch size (default to 1).
+% 
+% >  [X, FVAL] = BRP_SCALEDSGD(...) also returns the history of residuals.
+% 
+% >  [X, FVAL, AUC] = BRP_SCALEDSGD(...) also returns the history of auc score.
+% 
 
-% Parameter
-Momentum = 0;
-Minibatch = 1;
-Threshold = 1e-16;
-PrintFreq = 200;
-test_size_size = round(0.02*size(spdata,1));
+% Author: Hong-Ming Chiu (hmchiu2@illinois.edu)
+% Date:   10 Oct 2022
 
-% Robustness
-if nargin < 4 || isempty(learning_rate)
-    learning_rate = 1e-2;
-end
-if nargin < 5 || isempty(doScale)
-    doScale = true;
-end
+% Polymorphism
+if nargin < 4 || isempty(epochs);        epochs = 50;          end
+if nargin < 5 || isempty(learning_rate); learning_rate = 1e-2; end
+if nargin < 6 || isempty(doScale);       doScale = true;       end
+if nargin < 7 || isempty(momentum);      momentum = 0;         end
+
+% Input clean and check
+assert(mod(d,1) == 0 && d > 0, '''d'' must be a positive integer.')
+assert(mod(r,1) == 0 && r<=d && r > 0, 'Search rank ''r'' must be an integer and 0 < r <= d.')
+assert(mod(epochs,1) == 0 && epochs > 0, '''epoch'' must be a positive integer.')
+assert(learning_rate>0, '''learning_rate'' must be positive.')
+assert(islogical(doScale), '''doScale'' must be logical.')
+assert(momentum>=0, '''momentum'' must be nonnegative.')
 
 % Retrieve data
-m = size(spdata,1);
-perm = randperm(m);
-test_set = spdata(perm(1:test_size_size),:);
-train_set = spdata(perm(test_size_size+1:end),:);
+train_set = spdata.train;
+test_set = spdata.test;
+m = size(train_set,1);
 
-ftrain = inf(1,epochs); % history of residuals
-ftest = inf(1,epochs);  % history of residuals
-etrain = inf(1,epochs); % history of auc score
-etest = inf(1,epochs);  % history of residuals
-WordCount = 0;          % word counter
+% Parameter
+X = randn(d,r);                % initial X
+V = zeros(d,r);                % initial velocity of X
+P = eye(r);                    % initail preconditioner
+if doScale; P = inv(X'*X); end % initail preconditioner
+fval.train = inf(1,epochs);    % history of residuals
+fval.test  = inf(1,epochs);    % history of residuals
+auc.train  = inf(1,epochs);    % history of auc score
+auc.test   = inf(1,epochs);    % history of residuals
 
 % Print info
-X = randn(d,r); P = inv(X'*X); V = zeros(d,r);
-if ~doScale, P = eye(r); end
 w1 = fprintf(repmat('*',1,65));fprintf('*\n');
-w2 = fprintf('* search rank: %d, epochs: %d, learning rate: %3.1e, scale: %d',r,epochs,learning_rate,doScale);
+if doScale
+    w2 = fprintf('* Solver: ScaledSGD,  Loss Function: BPR loss');
+else
+    w2 = fprintf('* Solver: SGD,  Loss Function: BPR loss');
+end
+fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
+w2 = fprintf('* search rank: %d, epochs: %d, learning rate: %3.1e',r,epochs,learning_rate);
+fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
+w2 = fprintf('* momentum: %3.1e, minibatch: %d',momentum,1);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 fprintf(repmat('*',1,65));fprintf('*\n');
 
-[ini_ftrain, ini_etrain] = Evaluate(train_set, X);
-[ini_ftest, ini_etest] = Evaluate(test_set, X);
+[ini_ftrain, ini_auctrain] = Evaluate(train_set, X);
+[ini_ftest, ini_auctest] = Evaluate(test_set, X);
+WordCount = fprintf('Epoch: %d, Loss(train/test): %5.3e/%5.3e, AUC(train/test): %6.4f/%6.4f',...
+    0, ini_ftrain, ini_ftest, ini_auctrain, ini_auctest);
 
 % Start ScaleSGD
 for epoch = 1:epochs
-    % Shuffle data
-    perm = randperm(m); spdata = spdata(perm,:);
-    pointer = 1; m_train = size(train_set,1);
-    
-    while pointer <= m_train
-        % Pointer logic for minibatch. Compute the end point and then
-        pointer_end = min(pointer + Minibatch - 1, m_train);
-        idx = pointer:pointer_end; pointer = pointer_end+1;
-        
+    perm = randperm(m); train_set = train_set(perm,:);
+    for idx = 1:m   
         % Retrieve training data
-        i = train_set(idx,1); j = train_set(idx,2); k = train_set(idx,3); 
-        Yijk = reshape(train_set(idx,4),1,[]); % must be row vec
+        i = train_set(idx,1); j = train_set(idx,2);
+        k = train_set(idx,3); Yijk = train_set(idx,4);
         
-        % Retrieve old latent factors
-        xi = X(i,:)'; xj = X(j,:)'; xk = X(k,:)';
-        if Momentum > 0
-            vi = V(i,:)'; vj = V(j,:)'; vk = V(k,:)';
-        end
-        
-        % Compute gradient (1 x Minibatch)
-        zijk = sum(xi.*(xj-xk),1); 
+        % Compute gradient
+        zijk = X(i,:)*(X(j,:)-X(k,:))'; 
         grad = 1./(1+exp(-zijk))-Yijk;
+        
+        gradjk = grad*X(i,:)*P;
+        if i ~= j && i ~= k
+            gradi = grad*(X(j,:)-X(k,:))*P;
+        end
 
         % Update latent factors
-        % note use of element-wise multiplication
-        dui = P*(xj-xk); dujk = P*xi;
-        if Momentum > 0
-            vi_new = Momentum*vi - grad.*dui;
-            vj_new = Momentum*vj - grad.*dujk;
-            vk_new = Momentum*vk + grad.*dujk;
-            xi_new = xi + learning_rate*vi_new;
-            xj_new = xj + learning_rate*vj_new;
-            xk_new = xk + learning_rate*vk_new;
-        else
-            xi_new = xi - learning_rate*(grad.*dui);
-            xj_new = xj - learning_rate*(grad.*dujk);
-            xk_new = xk + learning_rate*(grad.*dujk);
+        xj_old = X(j,:);
+        V(j,:) = momentum*V(j,:) - gradjk;
+        X(j,:) = xj_old + learning_rate*V(j,:);
+        if k ~= j
+            xk_old = X(k,:);
+            V(k,:) = momentum*V(k,:) + gradjk;
+            X(k,:) = xk_old + learning_rate*V(k,:);
         end
-        
-        if doScale
-            if Minibatch > 1
-                % With minibatch, the low-rank update is not low-rank, so
-                % easier to just explicitly update
-                P = inv(inv(P) - xi*xi' - xj*xj' - xk*xk' ...
-                     + xi_new*xi_new' + xj_new*xj_new' + xk_new*xk_new');
-            else
-                % Update the Grammian inverse with new latent factors
-                % inv(inv(P) + u*u') = P - P*u*u'*P / (1 + u'*P*u)
-                % Note: this is explicitly unrolled to avoid overheads
-                u = xi_new; Pu = P*xi_new; P = P - Pu*Pu' / (1+u'*Pu);
-                u = xj_new; Pu = P*xj_new; P = P - Pu*Pu' / (1+u'*Pu);
-                u = xk_new; Pu = P*xk_new; P = P - Pu*Pu' / (1+u'*Pu);
-
-                % Downdate the Grammian inverse with old latent factors
-                % inv(inv(P) - u*u') = P + P*u*u'*P / (1 - u'*P*u)
-                u = xi; Pu = P*xi; P = P + Pu*Pu' / (1-u'*Pu);
-                u = xj; Pu = P*xj; P = P + Pu*Pu' / (1-u'*Pu);
-                u = xk; Pu = P*xk; P = P + Pu*Pu' / (1-u'*Pu);
+        if i ~= j && i ~= k
+            xi_old = X(i,:);
+            V(i,:) = momentum*V(i,:) - gradi;
+            X(i,:) = xi_old + learning_rate*V(i,:);
+        end
+                
+        if doScale            
+            Pu = P*X(j,:)'; p = X(j,:)*Pu; P = P - Pu*Pu' / (1+p);
+            Pu = P*xj_old'; p = xj_old*Pu; P = P + Pu*Pu' / (1-p);
+            if k ~= j
+                Pu = P*X(k,:)'; p = X(k,:)*Pu; P = P - Pu*Pu' / (1+p);
+                Pu = P*xk_old'; p = xk_old*Pu; P = P + Pu*Pu' / (1-p);
             end
-        end
-        
-        % Store new latent factors
-        X(i,:) = xi_new'; X(j,:) = xj_new'; X(k,:) = xk_new';
-        if Momentum > 0
-            V(i,:) = vi_new'; V(j,:) = vj_new'; V(k,:) = vk_new';
-        end
+            if i ~= j && i ~= k
+                Pu = P*X(i,:)'; p = X(i,:)*Pu; P = P - Pu*Pu' / (1+p);
+                Pu = P*xi_old'; p = xi_old*Pu; P = P + Pu*Pu' / (1-p);
+            end
+        end 
     end
     
     % Print objective value and gradient norm
-    [ftrain(epoch), etrain(epoch)] = Evaluate(train_set, X);
-    [ftest(epoch), etest(epoch)] = Evaluate(test_set, X);
+    [fval.train(epoch), auc.train(epoch)] = Evaluate(train_set, X);
+    [fval.test(epoch),  auc.test(epoch)]  = Evaluate(test_set,  X);
     fprintf(repmat('\b',1,WordCount));
-    WordCount = fprintf('Epoch: %4d, Loss(train/test): %5.3e/%5.3e, AUC(train/test): %6.4f/%6.4f',epoch, ftrain(epoch), ftest(epoch), etrain(epoch), etest(epoch));
-    if mod(epoch,PrintFreq)==0
-        WordCount = 0;
-        fprintf('\n')
-    end
-    if ftrain(epoch) <= Threshold
-        break
-    end
+    WordCount = fprintf('Epoch: %d, Loss(train/test): %5.3e/%5.3e, AUC(train/test): %6.4f/%6.4f',...
+        epoch, fval.train(epoch), fval.test(epoch), auc.train(epoch), auc.test(epoch));
 end
-if mod(epoch,PrintFreq)~=0
-    fprintf('\n')
-end
+fprintf('\n')
 
 % Output
-ftrain(epoch+1:end) = ftrain(epoch);
-ftest(epoch+1:end) = ftest(epoch);
-etrain(epoch+1:end) = etrain(epoch);
-etest(epoch+1:end) = etest(epoch);
-ftrain = [ini_ftrain, ftrain];
-ftest = [ini_ftest, ftest];
-etrain = [ini_etrain, etrain];
-etest = [ini_etest, etest];
+fval.train(epoch+1:end) = fval.train(epoch);
+fval.test(epoch+1:end)  = fval.test(epoch);
+auc.train(epoch+1:end)  = auc.train(epoch);
+auc.test(epoch+1:end)   = auc.test(epoch);
+fval.train = [ini_ftrain, fval.train];
+fval.test  = [ini_ftest, fval.test];
+auc.train  = [ini_auctrain, auc.train];
+auc.test   = [ini_auctest, auc.test];
 end
 
-function [obj, err, gradnrm] = Evaluate(spdata,X)
+function [obj, err] = Evaluate(spdata,X)
 % Efficiently compute M(i,j) - M(i,k) where M = X'*X
 i = spdata(:,1); j = spdata(:,2); k = spdata(:,3); 
 Mij = sum(X(i,:).*X(j,:),2); Mik = sum(X(i,:).*X(k,:),2);
@@ -153,22 +146,8 @@ Diff = Mij - Mik;
 Yijk = logical(spdata(:,4));
 PosDiff = max(Diff,0);
 objvec = PosDiff + log(exp(-PosDiff)+exp(Diff-PosDiff)) - Yijk.*Diff;
-gradvec = 1./(1+exp(-Diff)) - Yijk;
 aucvec = ((Diff > 0) & Yijk) | ((Diff < 0) & ~Yijk);
 
 % Output 
-obj = mean(objvec); err = mean(aucvec); gradnrm = 0;
-
-if nargout < 3, return; end
-% Evaluate full gradient
-grad = zeros(size(X)); 
-m = size(spdata,1);
-for idx = 1:m
-    % Compute gradient update
-    ii = i(idx); jj = j(idx); kk = k(idx); val = gradvec(idx);
-    grad(ii,:) = grad(ii,:) + val*(X(jj,:)-X(kk,:));
-    grad(jj,:) = grad(ii,:) + val*X(ii,:);
-    grad(kk,:) = grad(ii,:) - val*X(ii,:);
-end
-gradnrm = norm(grad,'fro')/m; 
+obj = mean(objvec); err = mean(aucvec);
 end

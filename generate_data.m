@@ -105,14 +105,15 @@ rng(1)    % Random seed
 data=readmatrix('Data/ratings_sm.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
-m = 5e5;
+m = 1e6;
+test_split = 0.1;
 
 % Form the user-item matrix
 UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
 ItemCount = full(sum(logical(UserItem))); 
 
 % Delete items with too few users and update number of movies
-ItemKeep = ItemCount>3;
+ItemKeep = ItemCount>0;
 UserItem = UserItem(:,ItemKeep);
 ItemNorm = full(sqrt(sum(UserItem.^2,1)));
 n_movie = numel(ItemNorm);
@@ -123,7 +124,7 @@ ItemItem = ItemItem./ItemNorm;
 ItemItem = ItemItem./ItemNorm';
 
 % Generate random item-item content
-idx = randperm(n_movie^3, m);
+idx = randperm(n_movie^3, 3*m);
 [i,j,k] = ind2sub(n_movie*[1,1,1], idx);
 idx_ij = sub2ind(n_movie*[1,1], i, j);
 idx_ik = sub2ind(n_movie*[1,1], i, k);
@@ -131,23 +132,45 @@ Mij = ItemItem(idx_ij); Mik = ItemItem(idx_ik);
 Yijk = sign(Mij - Mik);
 
 % Strip the comparisons with Mij = Mik since these do not affect training
-keep = Yijk ~= 0;
+% keep = Yijk ~= 0;
+keep = find(Yijk);
+keep = keep(1:m);
 i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
-Yijk = (Yijk+1)/2;
+Mij = Mij(keep); Mik = Mik(keep); Yijk = (Yijk+1)/2;
 
-% Compute nonpersonalize lowerbound on AUC
-np_max = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
-np_max = sum(np_max,1);
-% thelower = thelower(:);
-np_max = np_max(j)-np_max(k);
-np_max = ((np_max > 0) & Yijk) | ((np_max < 0) & ~Yijk);
-np_max = mean(np_max);
+% Compute non-personalized score
+np = sparse([i,i],[j,k],[Mij,Mik],n_movie,n_movie);
+np = sum(np~=0,1);
+
+% Split into train and test set
+test_size = round(test_split*numel(i));
+perm = randperm(numel(i));
+
+i_train = i(perm(test_size+1:end)); j_train = j(perm(test_size+1:end));
+k_train = k(perm(test_size+1:end)); Yijk_train = Yijk(perm(test_size+1:end));
+Mik_train = Mik(perm(test_size+1:end)); Mij_train = Mij(perm(test_size+1:end));
+
+i_test = i(perm(1:test_size)); j_test = j(perm(1:test_size));
+k_test = k(perm(1:test_size)); Yijk_test = Yijk(perm(1:test_size));
+
+% Compute most popular AUC
+% most_popular = sparse([i_train,i_train],[j_train,k_train],[Mij_train,Mik_train],n_movie,n_movie);
+% most_popular = sum(most_popular~=0,1);
+% most_popular = double(UserItem ~= 0);
+% most_popular = sum(most_popular,1);
+% most_popular = sum(ItemItem,1);
+most_popular = sum(ItemItem~=0,1);
+most_popular = most_popular(j_test)-most_popular(k_test);
+most_popular = ((most_popular > 0) & Yijk_test) | ((most_popular < 0) & ~Yijk_test);
+most_popular = mean(most_popular);
 
 % Output sparse data
-spdata = [i(:),j(:),k(:),Yijk(:)];
+spdata.train = [i_train(:),j_train(:),k_train(:),Yijk_train(:)];
+spdata.test = [i_test(:),j_test(:),k_test(:),Yijk_test(:)];
+np = np(:);
 
 filename = 'MovieLens_small.mat';
-save(fullfile('Data',filename), 'spdata', 'n_movie', 'np_max')
+save(fullfile('Data',filename), 'spdata', 'n_movie', 'most_popular', 'np')
 
 %% Collaborative Filtering (MovieLens 2.7M)
 % Generate ground truth item-item matrix using user-item from movielens
@@ -158,6 +181,7 @@ data=readmatrix('Data/ratings.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
 m = 2.7e6;
+test_split = 0.1;
 
 % Form the user-item matrix
 UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
@@ -169,32 +193,57 @@ UserItem = UserItem(:,ItemKeep);
 ItemNorm = ItemNorm(ItemKeep);
 n_movie = numel(ItemNorm);
 
-idx = randperm(n_movie^3, m);
+idx = randperm(n_movie^3, 3*m);
 [i,j,k] = ind2sub(n_movie*[1,1,1], idx);
-Mij = zeros(1,m); Mik = zeros(1,m);
-for idx = 1:m
+Mij = zeros(1,numel(idx)); Mik = zeros(1,numel(idx));
+for idx = 1:numel(idx)
     ii = i(idx); jj = j(idx); kk = k(idx);
     Mij(idx) = UserItem(:,ii)'*UserItem(:,jj)/(ItemNorm(ii)*ItemNorm(jj));
     Mik(idx) = UserItem(:,ii)'*UserItem(:,kk)/(ItemNorm(ii)*ItemNorm(kk));
     if mod(idx,1e4)==0, disp(idx); end
 end
 Yijk = sign(Mij - Mik);
-% Strip the comparisons with Mij = Mik since these do not affect training
-keep = Yijk ~= 0;
-i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
-Yijk = (Yijk+1)/2;
 
-% Compute nonpersonalize lowerbound on AUC
-np_max = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
-np_max = sum(np_max,1);
-np_max = np_max(j)-np_max(k);
-np_max = ((np_max > 0) & Yijk) | ((np_max < 0) & ~Yijk);
-np_max = mean(np_max);
+% Strip the comparisons with Mij = Mik since these do not affect training
+% keep = Yijk ~= 0;
+keep = find(Yijk);
+keep = keep(1:m);
+i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
+Mij = Mij(keep); Mik = Mik(keep); Yijk = (Yijk+1)/2;
+
+% Compute non-personalized score
+np = sparse([i,i],[j,k],[Mij,Mik],n_movie,n_movie);
+np = sum(np~=0,1);
+
+% Split into train and test set
+test_size = round(test_split*numel(i));
+perm = randperm(numel(i));
+
+i_train = i(perm(test_size+1:end)); j_train = j(perm(test_size+1:end));
+k_train = k(perm(test_size+1:end)); Yijk_train = Yijk(perm(test_size+1:end));
+Mik_train = Mik(perm(test_size+1:end)); Mij_train = Mij(perm(test_size+1:end));
+
+i_test = i(perm(1:test_size)); j_test = j(perm(1:test_size));
+k_test = k(perm(1:test_size)); Yijk_test = Yijk(perm(1:test_size));
+
+% Compute most popular AUC
+most_popular = sparse([i_train,i_train],[j_train,k_train],[Mij_train,Mik_train],n_movie,n_movie);
+most_popular = sum(most_popular~=0,1);
+% most_popular = double(UserItem ~= 0);
+% most_popular = sum(most_popular,1);
+% most_popular = sum(ItemItem,1);
+% most_popular = sum(ItemItem~=0,1);
+most_popular = most_popular(j_test)-most_popular(k_test);
+most_popular = ((most_popular > 0) & Yijk_test) | ((most_popular < 0) & ~Yijk_test);
+most_popular = mean(most_popular);
 
 % Output sparse data
-spdata = [i(:),j(:),k(:),Yijk(:)];
+spdata.train = [i_train(:),j_train(:),k_train(:),Yijk_train(:)];
+spdata.test = [i_test(:),j_test(:),k_test(:),Yijk_test(:)];
+np = np(:);
+
 filename = 'MovieLens2.7M.mat';
-save(fullfile('Data',filename), 'spdata', 'n_movie', 'np_max')
+save(fullfile('Data',filename), 'spdata', 'n_movie', 'most_popular', 'np')
 
 %% Collaborative Filtering (MovieLens 10M)
 % Generate ground truth item-item matrix using user-item from movielens
@@ -205,6 +254,7 @@ data=readmatrix('Data/ratings.csv');
 n_user = max(data(:,1));
 n_movie = max(data(:,2));
 m = 1e7;
+test_split = 0.02;
 
 % Form the user-item matrix
 UserItem = sparse(data(:,1),data(:,2),data(:,3),n_user,n_movie);
@@ -232,16 +282,18 @@ i = i(keep); j = j(keep); k = k(keep); Yijk = Yijk(keep);
 Yijk = (Yijk+1)/2;
 
 % Compute nonpersonalize lowerbound on AUC
-np_max = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
-np_max = sum(np_max,1);
-np_max = np_max(j)-np_max(k);
-np_max = ((np_max > 0) & Yijk) | ((np_max < 0) & ~Yijk);
-np_max = mean(np_max);
+np = sparse([i,i],[j,k],[Mij(keep),Mik(keep)],n_movie,n_movie);
+np = sum(np,1);
+most_popular = np(j)-np(k);
+most_popular = ((most_popular > 0) & Yijk) | ((most_popular < 0) & ~Yijk);
+most_popular = mean(most_popular);
 
 % Output sparse data
 spdata = [i(:),j(:),k(:),Yijk(:)];
+np = np(:);
+
 filename = 'MovieLens10M.mat';
-save(fullfile('Data',filename), 'spdata', 'n_movie')
+save(fullfile('Data',filename), 'spdata', 'n_movie', 'most_popular', 'np')
 
 
 
