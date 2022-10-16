@@ -1,4 +1,4 @@
-%% Experiment 3: Large-scale Item-item Collaborative Filtering
+%% Experiment 9: Large-scale Item-item Collaborative Filtering
 clear
 addpath Functions
 

@@ -1,29 +1,34 @@
-function [X,fval] = scaledsgd(M, r, epochs, learning_rate, lossfun, DOSCALE)
-% [X,Fval] = SCALEDSGD(M, r, epochs, learning_rate, lossfun, DOSCALE) 
+function [X, fval] = scaledsgd(M, r, epochs, learning_rate, lossfun, DOSCALE)
+% [X, Fval] = SCALEDSGD(M, r, epochs, learning_rate, lossfun, DOSCALE) 
 % 
-% SCALEDSGD   Scaled stochastic gradient descent algorithm for solving large, 
+% SCALEDSGD   Scaled stochastic gradient descent (ScaledSGD) for solving large, 
 %             sparse, and symmetric matrix completion problem.
 % 
-% >  [X] = SCALEDSGD(M, r) performs stochastic gradient descent to compute an d x r 
-%       factor X of M so that MAT = X*X' approximately satisfies MAT(i,j) = M(i,j) 
-%       for all nonzero elements i,j in M. M must be square and should be large, 
-%       sparse, and symmetric.
+% >  [X] = SCALEDSGD(M, r) performs scaled stochastic gradient descent to compute 
+%       a rank-r factorization X of M by minimizig the root mean square error (RMSE)
+%       between M and XX'. 
+%       Inputs
+%           - M: a size d x d square symmetric matrix.
+%           - r: search rank.
+%       Outputs
+%           - X: a size d x r factorization of M.
 % 
 % >  [X] = SCALEDSGD(M, r, epochs, learning_rate) specify the maximum number of
 %       epochs (default to 1e3) and the learning rate (default to 1e-2).
 % 
 % >  [X] = SCALEDSGD(M, r, epochs, learning_rate, lossfun) specify the loss function.
-%       Available loss function:
+%       Available loss functions:
 %           'RMSE' - (default) root mean square error.
 %           '1bit' - pointwise cross-entropy loss.
-%           'EDM'  - pairwise square loss for EDM completion.
+%           'EDM'  - pairwise square loss.
 % 
 % >  [X] = SCALEDSGD(M, r, epochs, learning_rate, lossfun, DOSCALE) specify
-%       wheater to apply scaling at each iteration (default to true). 
+%       wheater to apply scaling at each stochastic update (default to true). 
 %       If DOSCALE = false, this algorithm is the same as stochastic
 %       gradient descent (SGD).
 % 
-% >  [X, FVAL] = SCALEDSGD(...) also returns the history of residuals.
+% >  [X, FVAL] = SCALEDSGD(...) also returns the history of function value.
+% 
 
 % Author: Hong-Ming Chiu (hmchiu2@illinois.edu)
 % Date:   10 Oct 2022
@@ -41,7 +46,7 @@ assert(mod(r,1) == 0 && r<=d && r > 0, 'Search rank ''r'' must be an integer and
 assert(mod(epochs,1) == 0 && epochs > 0, '''epoch'' must be a positive integer.')
 assert(learning_rate>0, '''learning_rate'' must be positive.')
 assert(strcmp(lossfun,'RMSE') || strcmp(lossfun,'1bit') || strcmp(lossfun,'EDM'),...
-       'Undefinied loss function ''lossfun''. Available loss function: ''RMSE'', ''1bit'', ''EDM''.')
+       'Undefinied loss function lossfun=''%s''. Available loss functions: ''RMSE'', ''1bit'', ''EDM''.', lossfun)
 assert(islogical(DOSCALE), '''DOSCALE'' must be logical.')
 
 % Retrieve data
@@ -52,9 +57,9 @@ m = numel(i);
 % Parameter
 Threshold = 1e-16;             % error tolerance
 X = randn(d,r);                % initial X
-P = eye(r);                    % initail preconditioner
-if DOSCALE; P = inv(X'*X); end % initail preconditioner
-fval = inf(1,epochs);          % history of residuals
+P = eye(r);                    % initail preconditioner if DOSCALE = false
+if DOSCALE; P = inv(X'*X); end % initail preconditioner if DOSCALE = true
+fval = inf(1,epochs);          % history of function values
 PrintFreq = 200;               % for display
 
 % print info
@@ -70,18 +75,18 @@ fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 w2 = fprintf('* numel(M): %d, nnz(M): %d, #sample: %d',numel(M),nnz(M),m);
 fprintf(repmat(' ',1,w1-w2));fprintf('*\n');
 fprintf(repmat('*',1,65));fprintf('*\n');
-
 [ini_fval, grad] = ComputeObjGrad(spdata,X,lossfun);
 WordCount = fprintf('Epoch: %4d, Loss: %8.4e, Grad: %8.4e',0, ini_fval, norm(grad,'fro'));
 
-% Start SGD
+% Start ScaledSGD
 for epoch = 1:epochs
-    % shuffle data
-    perm = randperm(m); spdata = spdata(perm,:);
-
+    
+    % Shuffle data
+    spdata = spdata(randperm(m),:);
     for idx = 1:m
         i = spdata(idx,1); j = spdata(idx,2);
         xi = X(i,:); xj = X(j,:); Y = spdata(idx,3);
+        
         % Compute gradient
         switch lossfun
             case 'RMSE'
@@ -111,7 +116,8 @@ for epoch = 1:epochs
         end
         
         if DOSCALE
-            % Update the pre-conditioner P
+            % Update the pre-conditioner P by making four calls to
+            % the Sherman-Morrison rank-1 update formula
             Pu = P*X(i,:)'; p = X(i,:)*Pu; P = P - Pu*Pu' / (1+p);
             Pu = P*xi';     p = xi*Pu;     P = P + Pu*Pu' / (1-p);
             if i ~= j
@@ -132,7 +138,7 @@ end
 if mod(epoch,PrintFreq)~=0; fprintf('\n'); end
 fprintf('\n');
 
-% Output
+% Outputs
 fval(epoch+1:end) = fval(epoch);
 fval = [ini_fval, fval];
 end
@@ -160,8 +166,8 @@ switch lossfun
 end
 end
 
-function X_out = sigmoid(X_in)
-X_out = 1./(1+exp(-X_in));
+function Y = sigmoid(X)
+Y = 1./(1+exp(-X));
 end
 
 

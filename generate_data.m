@@ -1,4 +1,6 @@
-%% Synthetic data (n x n Symmetric Matrix with Rank r)
+%% Synthetic Data (n x n Symmetric Matrix with Rank r)
+% This data is used in Experiment 1 and Experiment 4
+
 clear;
 rng(1)   % Random seed
 n = 30;  % Size of matrix
@@ -16,7 +18,9 @@ MI = U*diag(s)*U';
 filename = ['MAT_', num2str(n),'.mat'];
 save(fullfile('Data',filename),'MW','MI','r')
 
-%% Synthetic data noisy case (n x n Symmetric Matrix with Rank r)
+%% Synthetic Data Noisy Case (n x n Symmetric Matrix with Rank r)
+% This data is used in Experiment 5 and Experiment 6
+
 clear;
 rng(1)    % Random seed
 n = 30;   % Size of matrix
@@ -49,6 +53,7 @@ save(fullfile('Data',filename),'MW','MI','r','SNR')
 %% Euclidean Distance Matrix Completion (EDM)
 % Generate n x n Euclidean distance matrix D where D(i,j) = |xi-xj|^2 and 
 % x1,...,xn are points in 3 dimensional space
+% This data is used in Experiment 2
 
 clear;
 rng(1)    % Random seed
@@ -94,12 +99,18 @@ MI = XI*XI';
 filename = ['EDM_', num2str(n),'.mat'];
 save(fullfile('Data',filename),'DW','MW','XW','DI','MI','XI','r')
 
-%% Collaborative Filtering (MovieLens Latest Small-scale, 1M sample)
-% Generate ground truth item-item matrix using user-item from movielens
-% MovieLens Latest Small-scale dataset (https://grouplens.org/datasets/movielens/latest/)
+%% Small-scale Collaborative Filtering (MovieLens Latest Small, 1M sample)
+% Generate samples of ground truth item-item matrix from MovieLens dataset
+% MovieLens Latest Small dataset (https://grouplens.org/datasets/movielens/latest/)
+% This data is used in Experiment 7
+
 clear;
 rng(1)    % Random seed
-data=readmatrix('Data/ratings_sm.csv');
+if ~isfile('Data/ml-latest-small/ratings.csv')
+    url = 'https://files.grouplens.org/datasets/movielens/ml-latest-small.zip';
+    unzip(url, 'Data');
+end
+data=readmatrix('Data/ml-latest-small/ratings.csv');
 
 million = 1e6;
 train_size = 1*million;
@@ -147,12 +158,18 @@ spdata.test = [i_test(:),j_test(:),k_test(:),Yijk_test(:)];
 filename = 'CF_1M.mat';
 save(fullfile('Data',filename), 'spdata', 'n_movie')
 
-%% Collaborative Filtering (MovieLens Latest Large-scale, 10M sample)
-% Generate ground truth item-item matrix using user-item from movielens
+%% Medium-scale Collaborative Filtering (MovieLens Latest Full, 10M sample)
+% Generate samples of ground truth item-item matrix from MovieLens dataset
 % MovieLens Latest Large-scale dataset (https://grouplens.org/datasets/movielens/latest/)
+% This data is used in Experiment 8
+
 clear;
 rng(1)    % Random seed
-data=readmatrix('Data/ratings_lr.csv');
+if ~isfile('Data/ml-latest/ratings.csv')
+    url = 'https://files.grouplens.org/datasets/movielens/ml-latest.zip';
+    unzip(url, 'Data');
+end
+data=readmatrix('Data/ml-latest/ratings.csv');
 million = 1e6;
 train_size = 10*million;
 test_size = 1*million;
@@ -216,12 +233,18 @@ spdata.test = [i_test(:),j_test(:),k_test(:),Yijk_test(:)];
 filename = 'CF_10M.mat';
 save(fullfile('Data',filename), 'spdata', 'n_movie')
 
-%% Collaborative Filtering (MovieLens Latest Large-scale, 30M sample)
-% Generate ground truth item-item matrix using user-item from movielens
+%% Large-scale Collaborative Filtering (MovieLens Latest Large-scale, 30M sample)
+% Generate samples of ground truth item-item matrix from MovieLens dataset
 % MovieLens Latest Large-scale dataset (https://grouplens.org/datasets/movielens/latest/)
+% This data is used in Experiment 9
+
 clear;
 rng(1)    % Random seed
-data=readmatrix('Data/ratings_lr.csv');
+if ~isfile('Data/ml-latest/ratings.csv')
+    url = 'https://files.grouplens.org/datasets/movielens/ml-latest.zip';
+    unzip(url, 'Data');
+end
+data=readmatrix('Data/ml-latest/ratings.csv');
 million = 1e6;
 train_size = 30*million;
 test_size = 3*million;
@@ -286,12 +309,19 @@ filename = 'CF_30M.mat';
 save(fullfile('Data',filename), 'spdata', 'n_movie')
 
 
-%% Collaborative Filtering (MovieLens25M, 100M sample)
-% Generate ground truth item-item matrix using user-item from MovieLens25M
+%% Huge-scale Collaborative Filtering (MovieLens25M, 100M sample)
+% Generate samples of ground truth item-item matrix from MovieLens dataset
 % MovieLens25M dataset (https://grouplens.org/datasets/movielens/25m/)
+% This data is used in Experiment 3
+
 clear;
 rng(1)    % Random seed
-data=readmatrix('Data/ratings25M.csv');
+
+if ~isfile('Data/ml-25m/ratings.csv')
+    url = 'https://files.grouplens.org/datasets/movielens/ml-25m.zip';
+    unzip(url, 'Data');
+end
+data=readmatrix('Data/ml-25m/ratings.csv');
 million = 1e6;
 train_size = 100*million;
 test_size = 10*million;
