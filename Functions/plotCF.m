@@ -1,4 +1,4 @@
-function plotCF(fsgd,fscsgd,aucsgd,aucscsgd,np_maximum,xlimit)
+function plotCF(fscsgd,fsgd,aucscsgd,aucsgd,np_maximum,xlimit)
 if nargin < 6; xlimit = inf; end
 % color for plot
 Stanford_Red   = '#8C1515';
@@ -23,10 +23,10 @@ ymin = 0.2;
 h1 = plot(0:t-1,fscsgd.itertrain,'Color',Illini_Orange,'LineWidth',2.5);
 h2 = plot(0:t-1,fsgd.itertrain,'Color',Illini_Blue,'LineStyle','-','LineWidth',2.5);
 set(gca,'fontsize',20)
-title('Training BPR Loss','interpreter','latex','FontSize',25);
-xlabel('Epochs','interpreter','latex','FontSize',25);
-ylabel('BPR Loss','interpreter','latex','FontSize',25);
-legend([h1,h2],'ScaledSGD','SGD','location','ne','FontSize',25);
+title('Training BPR Loss','interpreter','latex','FontSize',25)
+xlabel('Epochs','interpreter','latex','FontSize',25)
+ylabel('BPR Loss','interpreter','latex','FontSize',25)
+legend([h1,h2],'ScaledSGD','SGD','location','ne','FontSize',25)
 xlim([0 xlimit])
 ylim([ymin ymax])
 xticks(xtick)
@@ -39,13 +39,10 @@ h3 = plot(0:t-1,np_maximum*ones(1,t),'Color',Stanford_Red,'LineStyle','--','Line
 h1 = plot(0:t-1,aucscsgd.itertest,'Color',Illini_Orange,'LineWidth',2.5);
 h2 = plot(0:t-1,aucsgd.itertest,'Color',Illini_Blue,'LineStyle','-','LineWidth',2.5);
 set(gca,'fontsize',20)
-title('Testing AUC Score','interpreter','latex','FontSize',25);
-xlabel('Epochs','interpreter','latex','FontSize',25);
-legend('ScaledSGD','SGD','NP-Maximum','location','ne','FontSize',25);
-title('Testing AUC Score','interpreter','latex','FontSize',25);
-xlabel('Epochs','interpreter','latex','FontSize',25);
-ylabel('AUC Score','interpreter','latex','FontSize',25);
-legend([h1,h2,h3],'ScaledSGD','SGD','NP-Maximum','location','se','FontSize',25);
+title('Testing AUC Score','interpreter','latex','FontSize',25)
+xlabel('Epochs','interpreter','latex','FontSize',25)
+ylabel('AUC Score','interpreter','latex','FontSize',25)
+legend([h1,h2,h3],'ScaledSGD','SGD','NP-Maximum','location','se','FontSize',25)
 xlim([0 xlimit])
 ylim([0.49 1])
 xticks(xtick)

@@ -1,4 +1,4 @@
-function plotCFHuge(fsgd,fscsgd,aucsgd,aucscsgd,np_max)
+function plotCFHuge(fscsgd,fsgd,aucscsgd,aucsgd,np_max)
 
 % color for plot
 Stanford_Red   = '#8C1515';
@@ -19,10 +19,10 @@ fill(scale+[0,scale,scale,0],[0,0,ymax,ymax],'w','FaceColor','#1E3877','FaceAlph
 h1 = plot(0:t-1,fscsgd.itertrain,'Color',Illini_Orange,'LineWidth',2.5);
 h2 = plot(0:t-1,fsgd.itertrain,'Color',Illini_Blue,'LineStyle','-','LineWidth',2.5);
 set(gca,'fontsize',20)
-title('Training BPR Loss','interpreter','latex','FontSize',25);
-xlabel('Epochs','interpreter','latex','FontSize',25);
-ylabel('BPR Loss','interpreter','latex','FontSize',25);
-legend([h1,h2],'ScaledSGD','SGD','location','ne','FontSize',25);
+title('Training BPR Loss','interpreter','latex','FontSize',25)
+xlabel('Epochs','interpreter','latex','FontSize',25)
+ylabel('BPR Loss','interpreter','latex','FontSize',25)
+legend([h1,h2],'ScaledSGD','SGD','location','ne','FontSize',25)
 xlim([0 xlimit])
 ylim([0.18 ymax])
 xticks((0:epoch)*scale)
@@ -38,33 +38,33 @@ fill([0,scale,scale,0],[0,0,1,1],'w','FaceColor','#C84113','FaceAlpha',0.25,'Edg
 fill(scale+[0,scale,scale,0],[0,0,1,1],'w','FaceColor','#1E3877','FaceAlpha',0.25,'EdgeColor','none')
 
 scsgd0 = InterX([0:t-1;aucscsgd.itertest],[0:t-1;np_max*ones(1,t)]);
-plot(scsgd0(1)*ones(1,2),[0,scsgd0(2)],'Color',Illini_Orange,'LineStyle','--','LineWidth',1);
+plot(scsgd0(1)*ones(1,2),[0,scsgd0(2)],'Color',Illini_Orange,'LineStyle','--','LineWidth',1)
 text(scsgd0(1),tloc,pt(scsgd0(1)),'Color',Illini_Orange,'FontSize',18,...
-            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom')
 
 scsgd0 = InterX([0:t-1;aucscsgd.itertest],[0:t-1;0.9*ones(1,t)]);
-plot(scsgd0(1)*ones(1,2),[0,scsgd0(2)],'Color',Illini_Orange,'LineStyle','--','LineWidth',1);
+plot(scsgd0(1)*ones(1,2),[0,scsgd0(2)],'Color',Illini_Orange,'LineStyle','--','LineWidth',1)
 text(scsgd0(1),tloc,pt(scsgd0(1)-100),'Color',Illini_Orange,'FontSize',18,...
-            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom')
 
 sgd0 = InterX([0:t-1;aucsgd.itertest],[0:t-1;np_max*ones(1,t)]);
-plot(sgd0(1)*ones(1,2),[0,sgd0(2)],'Color',Illini_Blue,'LineStyle','--','LineWidth',1);
+plot(sgd0(1)*ones(1,2),[0,sgd0(2)],'Color',Illini_Blue,'LineStyle','--','LineWidth',1)
 text(sgd0(1),tloc,pt(sgd0(1)),'Color',Illini_Blue,'FontSize',18,...
-            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom')
         
 sgd0 = InterX([0:t-1;aucsgd.itertest],[0:t-1;0.9*ones(1,t)]);
-plot(sgd0(1)*ones(1,2),[0,sgd0(2)],'Color',Illini_Blue,'LineStyle','--','LineWidth',1);
+plot(sgd0(1)*ones(1,2),[0,sgd0(2)],'Color',Illini_Blue,'LineStyle','--','LineWidth',1)
 text(sgd0(1),tloc,pt(sgd0(1)-100),'Color',Illini_Blue,'FontSize',18,...
-            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom');        
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'bottom')        
         
 h3 = plot(0:t-1,np_max*ones(1,t),'Color',Stanford_Red,'LineStyle','--','LineWidth',2.5);
 h1 = plot(0:t-1,aucscsgd.itertest,'Color',Illini_Orange,'LineWidth',2.5);
 h2 = plot(0:t-1,aucsgd.itertest,'Color',Illini_Blue,'LineStyle','-','LineWidth',2.5);
 set(gca,'fontsize',20)
-title('Testing AUC Score','interpreter','latex','FontSize',25);
-xlabel('Epochs','interpreter','latex','FontSize',25);
-ylabel('AUC Score','interpreter','latex','FontSize',25);
-legend([h1,h2,h3],'ScaledSGD','SGD','NP-Maximum','location','se','FontSize',25);
+title('Testing AUC Score','interpreter','latex','FontSize',25)
+xlabel('Epochs','interpreter','latex','FontSize',25)
+ylabel('AUC Score','interpreter','latex','FontSize',25)
+legend([h1,h2,h3],'ScaledSGD','SGD','NP-Maximum','location','se','FontSize',25)
 xlim([0 xlimit])
 ylim([0.49 1])
 xticks((0:epoch)*scale)

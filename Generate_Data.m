@@ -1,7 +1,5 @@
 %% Experiment 1 and Experiment 4: Synthetic Data (30 x 30 Symmetric Matrix with Rank 3)
-
-clear;
-addpath Functions
+clear; addpath Functions
 rng(1)   % Random seed
 n = 30;  % Size of matrix
 r = 3;   % Rank
@@ -10,8 +8,7 @@ filename = ['Data/MAT_', num2str(n),'.mat'];
 save(filename,'MW','MI','r')
 
 %% Experiment 2: Euclidean Distance Matrix (30 Sample Points)
-
-clear;
+clear; addpath Functions
 rng(1)    % Random seed
 n = 30;   % Number of points
 [DW, MW, XW, DI, MI, XI] = generate_EDM(n);
@@ -20,8 +17,7 @@ save(filename,'DW','MW','XW','DI','MI','XI')
 
 %% Experiment 3: Huge-scale Collaborative Filtering (MovieLens25M, 100M sample)
 % Note: this code requires 32GB of RAM and a CPU with at least 10 core.
-
-clear;
+clear; addpath Functions
 rng(1)    % Random seed
 million = 1e6;
 if ~isfile('Data/ml-25m/ratings.csv')
@@ -36,8 +32,7 @@ filename = 'Data/CF_100M.mat';
 save(filename, 'spdata', 'n_movie', '-v7.3')
 
 %% Experiment 5 and Experiment 6: Synthetic Data Noisy Case (30 x 30 Symmetric Matrix with Rank 3)
-
-clear;
+clear; addpath Functions
 addpath Functions
 rng(1)    % Random seed
 n = 30;   % Size of matrix
@@ -48,8 +43,7 @@ filename = ['Data/MAT_Noise_', num2str(n),'.mat'];
 save(filename,'MW','MI','r','SNR')
 
 %% Experiment 7: Small-scale Collaborative Filtering (MovieLens Latest Small, 1M sample)
-
-clear;
+clear; addpath Functions
 rng(1)    % Random seed
 million = 1e6;
 if ~isfile('Data/ml-latest-small/ratings.csv')
@@ -64,8 +58,7 @@ filename = 'Data/CF_1M.mat';
 save(filename, 'spdata', 'n_movie')
 
 %% Experiment 8: Medium-scale Collaborative Filtering (MovieLens Latest Full, 10M sample)
-
-clear;
+clear; addpath Functions
 rng(1)    % Random seed
 million = 1e6;
 if ~isfile('Data/ml-latest/ratings.csv')
@@ -80,8 +73,7 @@ filename = 'Data/CF_10M.mat';
 save(filename, 'spdata', 'n_movie')
 
 %% Experiment 9: Large-scale Collaborative Filtering (MovieLens Latest Large-scale, 30M sample)
-
-clear;
+clear; addpath Functions
 rng(1)    % Random seed
 million = 1e6;
 if ~isfile('Data/ml-latest/ratings.csv')
@@ -94,4 +86,3 @@ test_size = 3*million;
 [spdata, n_movie] = generate_CF_LR(data, train_size, test_size);
 filename = 'Data/CF_30M.mat';
 save(filename, 'spdata', 'n_movie')
-

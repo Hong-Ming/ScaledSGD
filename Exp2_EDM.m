@@ -1,7 +1,5 @@
 %% Experiment 2: Euclidean Distance Matrix (EDM) Completion
-clear
-addpath Functions
-
+clear; addpath Functions
 loader = load('Data/EDM_30.mat'); 
 DW = loader.DW; XW = loader.XW;
 DI = loader.DI; XI = loader.XI;
@@ -25,3 +23,4 @@ rng(1); learning_rate = 0.002;
 
 %%%%%%%%%%%%%%%%%%%%%%%% Plot ScaledSGD vs SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 plotEDM(fscsgd_well,fsgd_well,fscsgd_ill,fsgd_ill, XW, XI)
+save('Data/Results/EXP2.mat','fscsgd_well','fsgd_well','fscsgd_ill','fsgd_ill', 'XW', 'XI')

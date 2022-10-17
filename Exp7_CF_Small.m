@@ -1,7 +1,5 @@
 %% Experiment 7: Small-scale Item-item Collaborative Filtering
-clear
-addpath Functions
-
+clear; addpath Functions
 loader = load('Data/CF_1M.mat');
 spdata = loader.spdata;
 d = loader.n_movie;
@@ -21,5 +19,5 @@ rng(1); learning_rate = 1e-1;
 [~, np_maximum] = bpr_npmaximum(spdata, d, 100, learning_rate);
 
 %%%%%%%%%%%%%%%%%%%%%%%% Plot ScaledSGD vs SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-plotCF(fsgd,fscsgd,aucsgd,aucscsgd,np_maximum)
-save('Data/CF_Small.mat','fsgd','fscsgd','aucsgd','aucscsgd','np_maximum')
+plotCF(fscsgd,fsgd,aucscsgd,aucsgd,np_maximum)
+save('Data/Results/EXP7.mat','fscsgd','fsgd','aucscsgd','aucsgd','np_maximum')

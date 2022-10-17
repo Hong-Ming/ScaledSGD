@@ -1,7 +1,5 @@
 %% Experiment 4: Matrix Completion with Pointwise Cross-entropy Loss
-clear
-addpath Functions
-
+clear; addpath Functions
 loader = load('Data/MAT_30.mat');
 MW = loader.MW; 
 MI = loader.MI;
@@ -24,4 +22,5 @@ rng(1); learning_rate = 1;
 [~, fsgd_ill]    = scaledsgd(MI, r, epochs, learning_rate, lossfun, false);
 
 %%%%%%%%%%%%%%%%%%%%%%%% Plot ScaledSGD vs SGD %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-plotMAT(fscsgd_well,fsgd_well,fscsgd_ill,fsgd_ill);
+plotMAT(fscsgd_well,fsgd_well,fscsgd_ill,fsgd_ill)
+save('Data/Results/EXP4.mat','fscsgd_well','fsgd_well','fscsgd_ill','fsgd_ill')
