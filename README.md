@@ -35,9 +35,9 @@ ScaledSGD/
 ├─ Exp8_CF_Medium.m ........ Run experiment in Figure 8.
 ├─ Exp9_CF_Large.m ......... Run experiment in Figure 9.
 ├─ Generate_Data.m ......... Generate data for Exp1 ~ Exp9.
-├─ Plot_Figures.m .......... Plot all figures in the paper.
+├─ Plot_Figures.m .......... Plot all Figures 1 ~ Figure 9 in paper.
 ├─ scaledsgd.m ............. ScaledSGD algorithm.  
-├─ bpr_scaledsgd.m ......... ScaledSGD algorithm optimized for BPR loss in large-scale setting.
+├─ bpr_scaledsgd.m ......... ScaledSGD algorithm optimized for BPR loss.
 └─ bpr_npmaximum.m ......... Compute NP-Maximum in the paper.
 </pre>
 <!-- DIRSTRUCTURE_END_MARKER -->
