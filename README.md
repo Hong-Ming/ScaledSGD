@@ -6,7 +6,8 @@
 @article{zhang2022accelerating,
   title={Accelerating SGD for Highly Ill-Conditioned Huge-Scale Online Matrix Completion},
   author={Zhang, Gavin and Chiu, Hong-Ming and Zhang, Richard Y},
-  journal={arXiv preprint arXiv:2208.11246},
+  journal={Advances in Neural Information Processing Systems},
+  volume={35},
   year={2022}
 }
 ```
