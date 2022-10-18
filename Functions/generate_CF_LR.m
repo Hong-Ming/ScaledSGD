@@ -19,7 +19,7 @@ clear ItemKeep
 
 % Generate random item-item content
 % Note that we sample 3 times more because some of the samples might have
-% Mij = Mik (or Yijk = 0), which we will delete it later.
+% Mij = Mik, which we will delete it later.
 sample = 3*m; sample = sample - mod(sample,worker); batch = sample/worker;
 [i,j,k] = ind2sub(n_movie*[1,1,1], randperm(n_movie^3, sample));
 i = reshape(i,batch,worker); j = reshape(j,batch,worker); k = reshape(k,batch,worker);
@@ -44,7 +44,7 @@ i = i(:)'; j = j(:)'; k = k(:)'; Mij = Mij(:)'; Mik = Mik(:)';
 Yijk = sign(Mij - Mik);
 clear UserItem ItemNorm Mij Mik
 
-% Keep only the first m samples that Mij ~= Mik (or Yijk ~= 0)
+% Keep only the first m samples that Mij ~= Mik
 keep = find(Yijk); keep = keep(1:m);
 i = i(keep); j = j(keep); k = k(keep); Yijk = (Yijk(keep)+1)/2;
 clear keep

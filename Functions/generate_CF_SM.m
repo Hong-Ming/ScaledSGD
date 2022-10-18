@@ -23,6 +23,8 @@ ItemItem = ItemItem./ItemNorm;
 ItemItem = ItemItem./ItemNorm';
 
 % Generate random item-item content
+% Note that we sample 3 times more because some of the samples might have
+% Mij = Mik, which we will delete it later.
 sample = 3*m;
 [i,j,k] = ind2sub(n_movie*[1,1,1], randperm(n_movie^3, sample));
 idx_ij = sub2ind(n_movie*[1,1], i, j);
@@ -30,7 +32,7 @@ idx_ik = sub2ind(n_movie*[1,1], i, k);
 Mij = ItemItem(idx_ij); Mik = ItemItem(idx_ik);
 Yijk = sign(Mij - Mik);
 
-% Strip the comparisons with Mij = Mik since these do not affect training
+% Keep only the first m samples that Mij ~= Mik
 keep = find(Yijk); keep = keep(1:m);
 i = i(keep); j = j(keep); k = k(keep); Yijk = (Yijk(keep)+1)/2;
 
