@@ -8,11 +8,11 @@ Illini_Blue    = '#13294B';
 
 % compute noise floor
 [U,S] = eig(MW); [~,idx] = sort(diag(S),'descend'); perm = idx(1:r);
-U = U(:,perm); S = S(perm,perm); 
+U = U(:,perm); S = S(perm,perm);
 nfw = (1/2)*(1/numel(MW))*norm(MW-U*S*U','fro')^2;
 
 [U,S] = eig(MI); [~,idx] = sort(diag(S),'descend'); perm = idx(1:r);
-U = U(:,perm); S = S(perm,perm); 
+U = U(:,perm); S = S(perm,perm);
 nfi = (1/2)*(1/numel(MI))*norm(MI-U*S*U','fro')^2;
 
 t = numel(fscsgd_well)-1;
@@ -30,7 +30,7 @@ set(gca,'fontsize',20,'yscale','log')
 title('Well-conditioned','interpreter','latex','FontSize',25)
 xlabel('Epochs','interpreter','latex','FontSize',25)
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25)
-legend('ScaledSGD','SGD','Noise Floor','location','ne','FontSize',25)
+legend('ScaledSGD','SGD','Noise Floor','location','northeast','FontSize',25)
 xlim([0 xlimit])
 ylim([ymin,ymax])
 
@@ -44,7 +44,7 @@ set(gca,'fontsize',20,'yscale','log')
 title('Ill-conditioned','interpreter','latex','FontSize',25)
 xlabel('Epochs','interpreter','latex','FontSize',25)
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25)
-legend('ScaledSGD','SGD','Noise Floor','location','ne','FontSize',25)
+legend('ScaledSGD','SGD','Noise Floor','location','northeast','FontSize',25)
 xlim([0 xlimit])
 ylim([ymin,ymax])
 end

@@ -1,5 +1,5 @@
 %% Experiment 8: Medium-scale Item-item Collaborative Filtering
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/CF_10M.mat');
 spdata = loader.spdata;
 d = loader.n_movie;

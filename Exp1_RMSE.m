@@ -1,5 +1,5 @@
 %% Experiment 1: Matrix Completion with RMSE Loss
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/MAT_30.mat');
 MW = loader.MW; 
 MI = loader.MI;

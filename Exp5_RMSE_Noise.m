@@ -1,5 +1,5 @@
 %% Experiment 5: Matrix Completion with RMSE loss on Noisy Datasets
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/MAT_Noise_30.mat');
 MW = loader.MW; 
 MI = loader.MI;

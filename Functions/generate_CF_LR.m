@@ -1,6 +1,6 @@
-function [spdata, n_movie] = generate_CF_LR(data, train_size, test_size)
+function [spdata, n_movie] = generate_CF_LR(data, train_size, test_size, UseParall)
 % Generate samples of ground truth item-item matrix from MovieLens dataset
-
+if nargin < 4; UseParall = true; end
 worker = 10;
 m = train_size + test_size;
 million = 1e6;
@@ -24,22 +24,39 @@ sample = 3*m; sample = sample - mod(sample,worker); batch = sample/worker;
 [i,j,k] = ind2sub(n_movie*[1,1,1], randperm(n_movie^3, sample));
 i = reshape(i,batch,worker); j = reshape(j,batch,worker); k = reshape(k,batch,worker);
 Mij = zeros(batch,worker); Mik = zeros(batch,worker);
-parfor pdx = 1:worker
-    w = 0;
-    ipar = i(:,pdx); jpar = j(:,pdx); kpar = k(:,pdx);
-    UI = UserItem; IN = ItemNorm;
-    Mijpar = zeros(batch,1); Mikpar = zeros(batch,1);
-    for idx = 1:batch
-        ii = ipar(idx); jj = jpar(idx); kk = kpar(idx);
-        Mijpar(idx) = UI(:,ii)'*UI(:,jj)/(IN(ii)*IN(jj));
-        Mikpar(idx) = UI(:,ii)'*UI(:,kk)/(IN(ii)*IN(kk));
-        if pdx == worker && mod(idx*worker,million)==0
-            w = fprintf([repmat('\b',1,w),'sample: %dM/%dM\n'],idx*worker/million,sample/million) - w; 
+if UseParall
+    parfor pdx = 1:worker
+        w = 0;
+        ipar = i(:,pdx); jpar = j(:,pdx); kpar = k(:,pdx);
+        UI = UserItem; IN = ItemNorm;
+        Mijpar = zeros(batch,1); Mikpar = zeros(batch,1);
+        for idx = 1:batch
+            ii = ipar(idx); jj = jpar(idx); kk = kpar(idx);
+            Mijpar(idx) = UI(:,ii)'*UI(:,jj)/(IN(ii)*IN(jj));
+            Mikpar(idx) = UI(:,ii)'*UI(:,kk)/(IN(ii)*IN(kk));
+            if pdx == worker && mod(idx*worker,million)==0
+                w = fprintf([repmat('\b',1,w),'sample: %dM/%dM\n'],idx*worker/million,sample/million) - w; 
+            end
         end
+        Mij(:,pdx) = Mijpar; Mik(:,pdx) = Mikpar;
     end
-    Mij(:,pdx) = Mijpar; Mik(:,pdx) = Mikpar;
+else
+    w = 0;
+    for pdx = 1:worker
+        ipar = i(:,pdx); jpar = j(:,pdx); kpar = k(:,pdx);
+        UI = UserItem; IN = ItemNorm;
+        Mijpar = zeros(batch,1); Mikpar = zeros(batch,1);
+        for idx = 1:batch
+            ii = ipar(idx); jj = jpar(idx); kk = kpar(idx);
+            Mijpar(idx) = UI(:,ii)'*UI(:,jj)/(IN(ii)*IN(jj));
+            Mikpar(idx) = UI(:,ii)'*UI(:,kk)/(IN(ii)*IN(kk));
+            if mod(idx+batch*(pdx-1),million)==0
+                w = fprintf([repmat('\b',1,w),'sample: %dM/%dM\n'],(idx+batch*(pdx-1))/million,sample/million) - w; 
+            end
+        end
+        Mij(:,pdx) = Mijpar; Mik(:,pdx) = Mikpar;
+    end
 end
-
 i = i(:)'; j = j(:)'; k = k(:)'; Mij = Mij(:)'; Mik = Mik(:)';
 Yijk = sign(Mij - Mik);
 clear UserItem ItemNorm Mij Mik

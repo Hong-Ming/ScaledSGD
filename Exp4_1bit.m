@@ -1,5 +1,5 @@
 %% Experiment 4: Matrix Completion with Pointwise Cross-entropy Loss
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/MAT_30.mat');
 MW = loader.MW; 
 MI = loader.MI;

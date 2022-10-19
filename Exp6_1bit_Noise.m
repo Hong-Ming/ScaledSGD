@@ -1,5 +1,5 @@
 %% Experiment 6: Matrix Completion with Pointwise Cross-entropy Loss on Noisy Datasets
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/MAT_Noise_30.mat');
 MW = loader.MW; 
 MI = loader.MI;

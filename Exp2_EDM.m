@@ -1,5 +1,5 @@
 %% Experiment 2: Euclidean Distance Matrix (EDM) Completion
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/EDM_30.mat'); 
 DW = loader.DW; XW = loader.XW;
 DI = loader.DI; XI = loader.XI;

@@ -14,7 +14,7 @@ set(gca,'fontsize',20,'yscale','log')
 title('Well-conditioned','interpreter','latex','FontSize',25)
 xlabel('Epochs','interpreter','latex','FontSize',25)
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25)
-legend('ScaledSGD','SGD','location','ne','FontSize',25)
+legend('ScaledSGD','SGD','location','northeast','FontSize',25)
 yticks([1e-18 1e-14 1e-10 1e-6 1e-2 1e2])
 xlim([0 xlimit])
 ylim([1e-18,1e2])
@@ -28,7 +28,7 @@ set(gca,'fontsize',20,'yscale','log')
 title('Ill-conditioned','interpreter','latex','FontSize',25);
 xlabel('Epochs','interpreter','latex','FontSize',25);
 ylabel('$$f(X)$$','interpreter','latex','FontSize',25);
-legend('ScaledSGD','SGD','location','ne','FontSize',25);
+legend('ScaledSGD','SGD','location','northeast','FontSize',25);
 yticks([1e-18 1e-14 1e-10 1e-6 1e-2 1e2])
 xlim([0 xlimit])
 ylim([1e-18,1e2])

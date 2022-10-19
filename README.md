@@ -44,8 +44,8 @@ ScaledSGD/
 <!-- DIRSTRUCTURE_END_MARKER -->
 
 ## Requirements
-- MATLAB version R2021a or later.
-- MATLAB Parallel Computing Toolbox.
+- MATLAB (version R2021a or later) or Octave 7.2.0.
+- MATLAB Parallel Computing Toolbox (optional).
     
 ## Author
 Name  : Hong-Ming Chiu

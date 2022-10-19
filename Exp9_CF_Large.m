@@ -1,5 +1,5 @@
 %% Experiment 9: Large-scale Item-item Collaborative Filtering
-clear; addpath Functions
+clear; addpath('Functions')
 loader = load('Data/CF_30M.mat');
 spdata = loader.spdata;
 d = loader.n_movie;
