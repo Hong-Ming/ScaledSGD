@@ -49,7 +49,7 @@ ScaledSGD/
 ## Author
 Name  : Hong-Ming Chiu
 
-Email : hmchiu2@illinois.edu
+Email : hmchiu2[at]illinois.edu
 
 Website : [https://hong-ming.github.io](https://hong-ming.github.io/)
 
